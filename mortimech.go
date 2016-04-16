@@ -21,19 +21,28 @@ import (
 	"unicode"
 )
 
+var FileSuffix = ".log"
+
 var ScannerBufferCapacity = 20*1024*1024
 
+// ------------------------------------------------------------
+
 func main() {
-	processDirs(os.Args[1:])
+	err := processDirs(os.Args[1:])
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-func processDirs(dirs []string) {
+func processDirs(dirs []string) error {
 	for _, dir := range dirs {
 		err := processDir(dir)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
+
+	return nil
 }
 
 func processDir(dir string) error {
@@ -43,7 +52,7 @@ func processDir(dir string) error {
 	}
 
 	for _, fileInfo := range fileInfos {
-		if strings.HasSuffix(fileInfo.Name(), ".log") {
+		if strings.HasSuffix(fileInfo.Name(), FileSuffix) {
 			err := processFile(dir, fileInfo.Name())
 			if err != nil {
 				return err
@@ -105,10 +114,20 @@ func processFile(dir, fname string) error {
 	}
 	defer f.Close()
 
+	emitEntry := func(startLine int, lines []string) {
+		if startLine > 0 {
+			fmt.Printf("************* (%d)\n", startLine)
+			for _, entryLine := range lines {
+				fmt.Println(entryLine)
+			}
+		}
+	}
+
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(nil, ScannerBufferCapacity)
 
 	var lineNum int
+	var entryStart int
 	var entryLines []string
 
 	for scanner.Scan() {
@@ -120,22 +139,16 @@ func processFile(dir, fname string) error {
 		lineStr := scanner.Text()
 		if fileMeta.EntryStart == nil ||
 			fileMeta.EntryStart(lineStr) {
+			emitEntry(entryStart, entryLines)
 
-			fmt.Println("*************")
-			for _, entryLine := range entryLines {
-				fmt.Println(entryLine)
-			}
-
+			entryStart = lineNum
 			entryLines = entryLines[0:0]
 		}
 
 		entryLines = append(entryLines, lineStr)
 	}
 
-	fmt.Println("*************")
-	for _, entryLine := range entryLines {
-		fmt.Println(entryLine)
-	}
+	emitEntry(entryStart, entryLines)
 
 	return scanner.Err()
 }
