@@ -93,7 +93,7 @@ func processFile(dir, fname string) error {
 		lineStr := scanner.Text()
 		if fileMeta.EntryStart == nil ||
 			fileMeta.EntryStart(lineStr) {
-			emitEntry(entryStart, entryLines)
+			processEntry(dir, fname, entryStart, entryLines)
 
 			entryStart = lineNum
 			entryLines = entryLines[0:0]
@@ -102,14 +102,14 @@ func processFile(dir, fname string) error {
 		entryLines = append(entryLines, lineStr)
 	}
 
-	emitEntry(entryStart, entryLines)
+	processEntry(dir, fname, entryStart, entryLines)
 
 	return scanner.Err()
 }
 
-func emitEntry(startLine int, lines []string) {
+func processEntry(dir, fname string, startLine int, lines []string) {
 	if startLine > 0 {
-		fmt.Printf("************* (%d)\n", startLine)
+		fmt.Printf("************* (%s => %s:%d)\n", dir, fname, startLine)
 		for _, entryLine := range lines {
 			fmt.Println(entryLine)
 		}
