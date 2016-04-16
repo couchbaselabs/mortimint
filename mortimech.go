@@ -17,11 +17,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
-	"unicode"
+	"path"
 )
-
-var FileSuffix = ".log"
 
 var ScannerBufferCapacity = 20*1024*1024
 
@@ -52,8 +49,9 @@ func processDir(dir string) error {
 	}
 
 	for _, fileInfo := range fileInfos {
-		if strings.HasSuffix(fileInfo.Name(), FileSuffix) {
-			err := processFile(dir, fileInfo.Name())
+		fname := fileInfo.Name()
+		if WantSuffixes[path.Ext(fname)] {
+			err := processFile(dir, fname)
 			if err != nil {
 				return err
 			}
@@ -62,41 +60,6 @@ func processDir(dir string) error {
 
 	return nil
 }
-
-// ------------------------------------------------------------
-
-type FileMeta struct {
-	LineFirst  int
-	LineSample string
-	EntryStart func(string) bool
-}
-
-var FileMetas = map[string]FileMeta{ // Keyed by file name.
-	"memcached.log": {
-		LineFirst:  5,
-		LineSample: "2016-04-14T16:10:09.463447-07:00 WARNING Restarting file logging",
-	},
-	"ns_server.babysitter.log": {
-		LineFirst:  5,
-		LineSample: `[ns_server:debug,2016-04-14T16:10:05.262-07:00,babysitter_of_ns_1@127.0.0.1:<0.65.0>:restartable:start_child:98]Started child process <0.66.0>
-  MFA: {supervisor_cushion,start_link,
-                           [ns_server,5000,infinity,ns_port_server,start_link,
-                            [#Fun<ns_child_ports_sup.2.49698737>]]}`,
-		EntryStart: func(line string) bool {
-			if len(line) <= 0 ||
-				line[0] != '[' {
-				return false
-			}
-			lineParts := strings.Split(line, ",")
-			if len(lineParts) < 3 || len(lineParts[1]) <= 0 {
-				return false
-			}
-			return unicode.IsDigit(rune(lineParts[1][0]))
-		},
-	},
-}
-
-// ------------------------------------------------------------
 
 func processFile(dir, fname string) error {
 	log.Printf("processFile, dir: %s, fname: %s", dir, fname)
@@ -113,15 +76,6 @@ func processFile(dir, fname string) error {
 		return err
 	}
 	defer f.Close()
-
-	emitEntry := func(startLine int, lines []string) {
-		if startLine > 0 {
-			fmt.Printf("************* (%d)\n", startLine)
-			for _, entryLine := range lines {
-				fmt.Println(entryLine)
-			}
-		}
-	}
 
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(nil, ScannerBufferCapacity)
@@ -151,4 +105,13 @@ func processFile(dir, fname string) error {
 	emitEntry(entryStart, entryLines)
 
 	return scanner.Err()
+}
+
+func emitEntry(startLine int, lines []string) {
+	if startLine > 0 {
+		fmt.Printf("************* (%d)\n", startLine)
+		for _, entryLine := range lines {
+			fmt.Println(entryLine)
+		}
+	}
 }
