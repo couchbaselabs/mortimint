@@ -53,13 +53,19 @@ var re_ns =
 
 // FileMeta represents metadata about a file that needs to be parsed.
 type FileMeta struct {
-	Skip        bool
-	FirstLine   int // The line number where actual entries start.
-	EntryStart  func(string) bool
+	Skip         bool
+	FirstLine    int // The line number where actual entries start.
+	EntryStart   func(string) bool
 	PrefixRegexp *regexp.Regexp
+	Cleanser     func([]byte) []byte
+
 }
 
 // ------------------------------------------------------------
+
+var equals_bar_re = regexp.MustCompile(`=======+([^=]+)=======+`)
+
+var equals_bar_replace = []byte(`"$1"`)
 
 // FileMeta represents metadata about a ns-server log file.
 var FileMetaNS = FileMeta{
@@ -76,6 +82,11 @@ var FileMetaNS = FileMeta{
 		return unicode.IsDigit(rune(lineParts[1][0]))
 	},
 	PrefixRegexp: re_ns,
+	Cleanser: func(s []byte) []byte {
+		// Convert `=============PROGRESS REPORT=============`
+		// into `"PROGRESS REPORT"`
+		return equals_bar_re.ReplaceAll(s, equals_bar_replace)
+	},
 }
 
 // ------------------------------------------------------------

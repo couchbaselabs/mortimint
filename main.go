@@ -141,6 +141,10 @@ func processEntry(dir, fname string, fileMeta *FileMeta,
 		buf = append(buf, '\n')
 	}
 
+	if fileMeta.Cleanser != nil {
+		buf = fileMeta.Cleanser(buf)
+	}
+
 	// Hack to use go's tokenizer / scanner rather then write our own.
 	var s scanner.Scanner
 	fset := token.NewFileSet()
