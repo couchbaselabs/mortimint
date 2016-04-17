@@ -60,8 +60,10 @@ type FileMeta struct {
 // ------------------------------------------------------------
 
 var equals_bar_re = regexp.MustCompile(`=======+([^=]+)=======+`)
-
 var equals_bar_replace = []byte(`"$1"`)
+
+var ns_pid_re = regexp.MustCompile(`(<\d+\.\d+\.\d+>)`) // <0.0.0>
+var ns_pid_replace = []byte(`"$1"`)
 
 // FileMeta represents metadata about a ns-server log file.
 var FileMetaNS = FileMeta{
@@ -81,7 +83,12 @@ var FileMetaNS = FileMeta{
 	Cleanser: func(s []byte) []byte {
 		// Convert `=============PROGRESS REPORT=============`
 		// into `"PROGRESS REPORT"`
-		return equals_bar_re.ReplaceAll(s, equals_bar_replace)
+		s = equals_bar_re.ReplaceAll(s, equals_bar_replace)
+
+		// Convert `<0.0.0>` into `"<0.0.0>"`
+		s = ns_pid_re.ReplaceAll(s, ns_pid_replace)
+
+		return s
 	},
 }
 
