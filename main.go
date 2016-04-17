@@ -23,7 +23,7 @@ import (
 	"go/token"
 )
 
-var ScannerBufferCapacity = 20*1024*1024
+var ScannerBufferCapacity = 20 * 1024 * 1024
 
 // ------------------------------------------------------------
 
@@ -130,7 +130,7 @@ func processEntry(dir, fname string, fileMeta *FileMeta,
 	}
 
 	firstLine := entryLines[0]
-	match := fileMeta.PrefixRegexp.FindStringSubmatch(firstLine)
+	match := fileMeta.PrefixRE.FindStringSubmatch(firstLine)
 	if len(match) > 0 {
 		entryLines[0] = firstLine[len(match[0]):]
 	}
@@ -156,20 +156,20 @@ func processEntry(dir, fname string, fileMeta *FileMeta,
 	return buf
 }
 
-var spaces = "                                             "+
-	"                                                      "+
-	"                                                      "+
-	"                                                      "+
-	"                                                      "+
+var spaces = "                                             " +
+	"                                                      " +
+	"                                                      " +
+	"                                                      " +
+	"                                                      " +
 	"                                                      "
 
-var levelDelta = map[token.Token]int {
-    token.LPAREN: 1,
-    token.RPAREN: -1, // )
-    token.LBRACK: 1,
-    token.RBRACK: -1, // ]
-    token.LBRACE: 1,
-    token.RBRACE: -1, // }
+var levelDelta = map[token.Token]int{
+	token.LPAREN: 1,
+	token.RPAREN: -1, // )
+	token.LBRACK: 1,
+	token.RBRACK: -1, // ]
+	token.LBRACE: 1,
+	token.RBRACE: -1, // }
 }
 
 func emitTokens(s *scanner.Scanner) {

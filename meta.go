@@ -17,7 +17,7 @@ import (
 	"unicode"
 )
 
-var WantSuffixes = map[string]bool {
+var WantSuffixes = map[string]bool{
 	".log": true,
 }
 
@@ -40,25 +40,21 @@ var WantSuffixes = map[string]bool {
 var ymd = `(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)`
 var hms = `T(?P<HH>\d\d):(?P<MM>\d\d):(?P<SS>\d\d)\.(?P<SSSS>\d+)`
 
-var re_usual =
-	regexp.MustCompile(`^`+ymd+hms+`-\S+\s(?P<level>\S+)\s`)
+var re_usual = regexp.MustCompile(`^` + ymd + hms + `-\S+\s(?P<level>\S+)\s`)
 
-var re_usual_ex =
-	regexp.MustCompile(`^(?P<module>\w+)\s`+ymd+hms+`-\S+\s(?P<level>\S+)\s`)
+var re_usual_ex = regexp.MustCompile(`^(?P<module>\w+)\s` + ymd + hms + `-\S+\s(?P<level>\S+)\s`)
 
-var re_ns =
-	regexp.MustCompile(`^\[(?P<module>\w+):(?P<level>\w+),`+ymd+hms+`-[^,]+,`)
+var re_ns = regexp.MustCompile(`^\[(?P<module>\w+):(?P<level>\w+),` + ymd + hms + `-[^,]+,`)
 
 // ------------------------------------------------------------
 
 // FileMeta represents metadata about a file that needs to be parsed.
 type FileMeta struct {
-	Skip         bool
-	FirstLine    int // The line number where actual entries start.
-	EntryStart   func(string) bool
-	PrefixRegexp *regexp.Regexp
-	Cleanser     func([]byte) []byte
-
+	Skip       bool
+	FirstLine  int // The line number where actual entries start.
+	EntryStart func(string) bool
+	PrefixRE   *regexp.Regexp
+	Cleanser   func([]byte) []byte
 }
 
 // ------------------------------------------------------------
@@ -69,7 +65,7 @@ var equals_bar_replace = []byte(`"$1"`)
 
 // FileMeta represents metadata about a ns-server log file.
 var FileMetaNS = FileMeta{
-	FirstLine:  5,
+	FirstLine: 5,
 	EntryStart: func(line string) bool {
 		if len(line) <= 0 ||
 			line[0] != '[' {
@@ -81,7 +77,7 @@ var FileMetaNS = FileMeta{
 		}
 		return unicode.IsDigit(rune(lineParts[1][0]))
 	},
-	PrefixRegexp: re_ns,
+	PrefixRE: re_ns,
 	Cleanser: func(s []byte) []byte {
 		// Convert `=============PROGRESS REPORT=============`
 		// into `"PROGRESS REPORT"`
@@ -107,8 +103,8 @@ var FileMetas = map[string]FileMeta{
 	// TODO: "master_events.log".
 
 	"memcached.log": {
-		FirstLine:   5,
-		PrefixRegexp: re_usual,
+		FirstLine: 5,
+		PrefixRE:  re_usual,
 	},
 
 	"ns_server.babysitter.log": FileMetaNS,
@@ -120,16 +116,16 @@ var FileMetas = map[string]FileMeta{
 	"ns_server.error.log": FileMetaNS,
 
 	"ns_server.fts.log": {
-		FirstLine:  5,
+		FirstLine: 5,
 		EntryStart: func(line string) bool {
 			return len(line) > 0 && unicode.IsDigit(rune(line[0]))
 		},
-		PrefixRegexp: re_usual,
+		PrefixRE: re_usual,
 	},
 
 	"ns_server.goxdcr.log": {
-		FirstLine:   5,
-		PrefixRegexp: re_usual_ex,
+		FirstLine: 5,
+		PrefixRE:  re_usual_ex,
 	},
 
 	"ns_server.http_access.log": {
@@ -153,8 +149,8 @@ var FileMetas = map[string]FileMeta{
 	"ns_server.ns_couchdb.log": FileMetaNS,
 
 	"ns_server.projector.log": {
-		FirstLine:   5,
-		PrefixRegexp: re_usual,
+		FirstLine: 5,
+		PrefixRE:  re_usual,
 	},
 
 	// TODO: "ns_server.query.log".
