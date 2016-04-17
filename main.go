@@ -103,7 +103,7 @@ func processFile(dir, fname string) error {
 		lineStr := scanner.Text()
 		if fileMeta.EntryStart == nil ||
 			fileMeta.EntryStart(lineStr) {
-			buf = processEntry(dir, fname, entryStart, entryLines, buf)
+			buf = processEntry(dir, fname, &fileMeta, entryStart, entryLines, buf)
 
 			entryStart = lineNum
 			entryLines = entryLines[0:0]
@@ -112,23 +112,27 @@ func processFile(dir, fname string) error {
 		entryLines = append(entryLines, lineStr)
 	}
 
-	buf = processEntry(dir, fname, entryStart, entryLines, buf)
+	buf = processEntry(dir, fname, &fileMeta, entryStart, entryLines, buf)
 
 	return scanner.Err()
 }
 
-func processEntry(dir, fname string, startLine int, entryLines []string, buf []byte) []byte {
+func processEntry(dir, fname string, fileMeta *FileMeta,
+	startLine int, entryLines []string, buf []byte) []byte {
 	if startLine <= 0 || len(entryLines) <= 0 {
 		return buf
 	}
 
 	fmt.Printf("************* (%s => %s:%d)\n", dir, fname, startLine)
 
-	nbytes := 0
 	for _, entryLine := range entryLines {
-		nbytes += len(entryLine)
-
 		fmt.Println(entryLine)
+	}
+
+	firstLine := entryLines[0]
+	match := fileMeta.PrefixRegexp.FindStringSubmatch(firstLine)
+	if len(match) > 0 {
+		entryLines[0] = firstLine[len(match[0]):]
 	}
 
 	buf = buf[0:0]
@@ -137,7 +141,7 @@ func processEntry(dir, fname string, startLine int, entryLines []string, buf []b
 		buf = append(buf, '\n')
 	}
 
-	// Hack to use go's scanner rather write our own.
+	// Hack to use go's tokenizer / scanner rather then write our own.
 	var s scanner.Scanner
 	fset := token.NewFileSet()
 	file := fset.AddFile("", fset.Base(), len(buf)) // Fake file for buf.
