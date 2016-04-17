@@ -53,11 +53,13 @@ func processDir(dir string) error {
 
 	for _, fileInfo := range fileInfos {
 		fname := fileInfo.Name()
-		if WantSuffixes[path.Ext(fname)] {
-			err := processFile(dir, fname)
-			if err != nil {
-				return err
-			}
+		if !WantSuffixes[path.Ext(fname)] {
+			continue
+		}
+
+		err := processFile(dir, fname)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -67,13 +69,13 @@ func processDir(dir string) error {
 func processFile(dir, fname string) error {
 	log.Printf("processFile, dir: %s, fname: %s", dir, fname)
 
-	fileMeta, exists := FileMetas[fname]
+	fmeta, exists := FileMetas[fname]
 	if !exists {
 		log.Printf("processFile, dir: %s, fname: %s, skipped, no file meta", dir, fname)
 		return nil
 	}
 
-	if fileMeta.Skip {
+	if fmeta.Skip {
 		log.Printf("processFile, dir: %s, fname: %s, skipped", dir, fname)
 		return nil
 	}
@@ -96,14 +98,14 @@ func processFile(dir, fname string) error {
 
 	for scanner.Scan() {
 		lineNum++
-		if lineNum < fileMeta.FirstLine {
+		if lineNum < fmeta.FirstLine {
 			continue
 		}
 
 		lineStr := scanner.Text()
-		if fileMeta.EntryStart == nil ||
-			fileMeta.EntryStart(lineStr) {
-			buf = processEntry(dir, fname, &fileMeta, entryStart, entryLines, buf)
+		if fmeta.EntryStart == nil ||
+			fmeta.EntryStart(lineStr) {
+			buf = processEntry(dir, fname, &fmeta, entryStart, entryLines, buf)
 
 			entryStart = lineNum
 			entryLines = entryLines[0:0]
@@ -112,12 +114,12 @@ func processFile(dir, fname string) error {
 		entryLines = append(entryLines, lineStr)
 	}
 
-	buf = processEntry(dir, fname, &fileMeta, entryStart, entryLines, buf)
+	buf = processEntry(dir, fname, &fmeta, entryStart, entryLines, buf)
 
 	return scanner.Err()
 }
 
-func processEntry(dir, fname string, fileMeta *FileMeta,
+func processEntry(dir, fname string, fmeta *FileMeta,
 	startLine int, entryLines []string, buf []byte) []byte {
 	if startLine <= 0 || len(entryLines) <= 0 {
 		return buf
@@ -125,13 +127,13 @@ func processEntry(dir, fname string, fileMeta *FileMeta,
 
 	firstLine := entryLines[0]
 
-	match := fileMeta.PrefixRE.FindStringSubmatch(firstLine)
+	match := fmeta.PrefixRE.FindStringSubmatch(firstLine)
 	if len(match) <= 0 {
 		return buf
 	}
 
 	matchParts := map[string]string{}
-	for i, name := range fileMeta.PrefixRE.SubexpNames() {
+	for i, name := range fmeta.PrefixRE.SubexpNames() {
 		if i > 0 {
 			matchParts[name] = match[i]
 		}
@@ -139,14 +141,10 @@ func processEntry(dir, fname string, fileMeta *FileMeta,
 
 	entryLines[0] = firstLine[len(match[0]):]
 
-	ts := string(fileMeta.PrefixRE.ExpandString(nil,
+	ts := string(fmeta.PrefixRE.ExpandString(nil,
 		"${year}-${month}-${day}T${HH}:${MM}:${SS}-${SSSS}",
 		firstLine,
-		fileMeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))))
-
-	// fmt.Println(ts)
-	_ = ts
-	_ = fmt.Println
+		fmeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))))
 
 	buf = buf[0:0]
 	for _, entryLine := range entryLines {
@@ -154,8 +152,8 @@ func processEntry(dir, fname string, fileMeta *FileMeta,
 		buf = append(buf, '\n')
 	}
 
-	if fileMeta.Cleanser != nil {
-		buf = fileMeta.Cleanser(buf)
+	if fmeta.Cleanser != nil {
+		buf = fmeta.Cleanser(buf)
 	}
 
 	// Hack to use go's tokenizer / scanner rather then write our own.
@@ -163,6 +161,8 @@ func processEntry(dir, fname string, fileMeta *FileMeta,
 	fset := token.NewFileSet()
 	file := fset.AddFile("", fset.Base(), len(buf)) // Fake file for buf.
 	s.Init(file, buf, nil /* No error handler. */, 0)
+
+	fmt.Println(ts)
 
 	emitTokens(&s)
 
@@ -183,6 +183,11 @@ var levelDelta = map[token.Token]int{
 	token.RBRACE: -1, // }
 }
 
+var skipToken = map[token.Token]bool{
+    token.SHL: true, // <<
+    token.SHR: true, // >>
+}
+
 func emitTokens(s *scanner.Scanner) {
 	level := 0
 
@@ -197,10 +202,14 @@ func emitTokens(s *scanner.Scanner) {
 			level = 0
 		}
 
+		if skipToken[tok] {
+			continue
+		}
+
 		if lit != "" {
-			// fmt.Printf("%s%s %s\n", spaces[0:level], tok, lit)
+			fmt.Printf("%s%s %s\n", spaces[0:level], tok, lit)
 		} else {
-			// fmt.Printf("%s%s\n", spaces[0:level], tok)
+			fmt.Printf("%s%s\n", spaces[0:level], tok)
 		}
 	}
 }
