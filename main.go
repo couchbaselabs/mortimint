@@ -57,7 +57,9 @@ func processDir(dir string) error {
 			continue
 		}
 
-		err := processFile(dir, fname)
+		fp := &fileProcessor{dir: dir, fname: fname}
+
+		err := fp.process()
 		if err != nil {
 			return err
 		}
@@ -66,23 +68,31 @@ func processDir(dir string) error {
 	return nil
 }
 
-func processFile(dir, fname string) error {
-	log.Printf("processFile, dir: %s, fname: %s", dir, fname)
+type fileProcessor struct {
+	dir   string
+	fname string
+	fmeta FileMeta
+	buf   []byte
+}
 
-	fmeta, exists := FileMetas[fname]
+func (p *fileProcessor) process() error {
+	log.Printf("processFile, dir: %s, fname: %s", p.dir, p.fname)
+
+	fmeta, exists := FileMetas[p.fname]
 	if !exists {
-		log.Printf("processFile, dir: %s, fname: %s, skipped, no file meta", dir, fname)
+		log.Printf("processFile, dir: %s, fname: %s, skipped, no file meta", p.dir, p.fname)
 		return nil
 	}
 
-	if fmeta.Skip {
-		log.Printf("processFile, dir: %s, fname: %s, skipped", dir, fname)
+	p.fmeta = fmeta
+	if p.fmeta.Skip {
+		log.Printf("processFile, dir: %s, fname: %s, skipped", p.dir, p.fname)
 		return nil
 	}
 
-	log.Printf("processFile, dir: %s, fname: %s, opening", dir, fname)
+	log.Printf("processFile, dir: %s, fname: %s, opening", p.dir, p.fname)
 
-	f, err := os.Open(dir + "/" + fname)
+	f, err := os.Open(p.dir + "/" + p.fname)
 	if err != nil {
 		return err
 	}
@@ -94,18 +104,17 @@ func processFile(dir, fname string) error {
 	var lineNum int
 	var entryStart int
 	var entryLines []string
-	var buf []byte
 
 	for scanner.Scan() {
 		lineNum++
-		if lineNum <= fmeta.HeaderSize {
+		if lineNum <= p.fmeta.HeaderSize {
 			continue
 		}
 
 		lineStr := scanner.Text()
-		if fmeta.EntryStart == nil ||
-			fmeta.EntryStart(lineStr) {
-			buf = processEntry(dir, fname, &fmeta, entryStart, entryLines, buf)
+		if p.fmeta.EntryStart == nil ||
+			p.fmeta.EntryStart(lineStr) {
+			p.processEntry(entryStart, entryLines)
 
 			entryStart = lineNum
 			entryLines = entryLines[0:0]
@@ -114,15 +123,14 @@ func processFile(dir, fname string) error {
 		entryLines = append(entryLines, lineStr)
 	}
 
-	buf = processEntry(dir, fname, &fmeta, entryStart, entryLines, buf)
+	p.processEntry(entryStart, entryLines)
 
 	return scanner.Err()
 }
 
-func processEntry(dir, fname string, fmeta *FileMeta,
-	startLine int, entryLines []string, buf []byte) []byte {
+func (p *fileProcessor) processEntry(startLine int, entryLines []string) {
 	if startLine <= 0 || len(entryLines) <= 0 {
-		return buf
+		return
 	}
 
 	for _, entryLine := range entryLines {
@@ -131,13 +139,13 @@ func processEntry(dir, fname string, fmeta *FileMeta,
 
 	firstLine := entryLines[0]
 
-	match := fmeta.PrefixRE.FindStringSubmatch(firstLine)
+	match := p.fmeta.PrefixRE.FindStringSubmatch(firstLine)
 	if len(match) <= 0 {
-		return buf
+		return
 	}
 
 	matchParts := map[string]string{}
-	for i, name := range fmeta.PrefixRE.SubexpNames() {
+	for i, name := range p.fmeta.PrefixRE.SubexpNames() {
 		if i > 0 {
 			matchParts[name] = match[i]
 		}
@@ -145,32 +153,30 @@ func processEntry(dir, fname string, fmeta *FileMeta,
 
 	entryLines[0] = firstLine[len(match[0]):]
 
-	ts := string(fmeta.PrefixRE.ExpandString(nil,
+	ts := string(p.fmeta.PrefixRE.ExpandString(nil,
 		"${year}-${month}-${day}T${HH}:${MM}:${SS}-${SSSS}",
 		firstLine,
-		fmeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))))
+		p.fmeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))))
 
-	buf = buf[0:0]
+	p.buf = p.buf[0:0]
 	for _, entryLine := range entryLines {
-		buf = append(buf, []byte(entryLine)...)
-		buf = append(buf, '\n')
+		p.buf = append(p.buf, []byte(entryLine)...)
+		p.buf = append(p.buf, '\n')
 	}
 
-	if fmeta.Cleanser != nil {
-		buf = fmeta.Cleanser(buf)
+	if p.fmeta.Cleanser != nil {
+		p.buf = p.fmeta.Cleanser(p.buf)
 	}
 
 	// Hack to use go's tokenizer / scanner rather then write our own.
 	var s scanner.Scanner
 	fset := token.NewFileSet()
-	file := fset.AddFile("", fset.Base(), len(buf)) // Fake file for buf.
-	s.Init(file, buf, nil /* No error handler. */, 0)
+	s.Init(fset.AddFile(p.dir+"/"+p.fname, fset.Base(), len(p.buf)),
+		p.buf, nil /* No error handler. */, 0)
 
 	fmt.Println(ts)
 
-	emitTokens(&s)
-
-	return buf
+	p.emitTokens(&s)
 }
 
 var levelDelta = map[token.Token]int{
@@ -201,10 +207,10 @@ var skipToken = map[token.Token]bool{
 type tokLit struct {
 	level int
 	tok   token.Token
-    lit   string
+	lit   string
 }
 
-func emitTokens(s *scanner.Scanner) {
+func (p *fileProcessor) emitTokens(s *scanner.Scanner) {
 	level := 0
 
 	tokLitPrev := make([]tokLit, 2)
@@ -239,13 +245,13 @@ func emitTokens(s *scanner.Scanner) {
 			level = 0
 		}
 
-		emitToken(&tokLitPrev[0])
+		p.emitToken(&tokLitPrev[0])
 
 		tokLitPrev[1] = tokLitPrev[0]
 		tokLitPrev[0] = tokLit{level, tok, lit}
 	}
 
-	emitToken(&tokLitPrev[0])
+	p.emitToken(&tokLitPrev[0])
 }
 
 func tokenLitString(tok token.Token, lit string) string {
@@ -261,7 +267,7 @@ var spaces = "                                             " +
 	"                                                      " +
 	"                                                      "
 
-func emitToken(x *tokLit) {
+func (p *fileProcessor) emitToken(x *tokLit) {
 	if x.tok != token.ILLEGAL {
 		if x.lit != "" {
 			fmt.Printf("%s%s %s\n", spaces[0:x.level], x.tok, x.lit)
