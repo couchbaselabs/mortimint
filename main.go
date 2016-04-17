@@ -174,11 +174,6 @@ func processEntry(dir, fname string, fmeta *FileMeta,
 	return buf
 }
 
-var spaces = "                                             " +
-	"                                                      " +
-	"                                                      " +
-	"                                                      "
-
 var levelDelta = map[token.Token]int{
 	token.LPAREN: 1,
 	token.RPAREN: -1, // )
@@ -196,10 +191,23 @@ var skipToken = map[token.Token]bool{
 func emitTokens(s *scanner.Scanner) {
 	level := 0
 
+	var prevLevel int
+	var prevTok token.Token
+	var prevLit string
+
 	for {
 		_, tok, lit := s.Scan()
 		if tok == token.EOF {
 			break
+		}
+
+		if skipToken[tok] {
+			continue
+		}
+
+		if tok == token.IDENT && prevTok == token.IDENT {
+			prevLit = prevLit + " " + lit
+			continue
 		}
 
 		level += levelDelta[tok]
@@ -207,10 +215,21 @@ func emitTokens(s *scanner.Scanner) {
 			level = 0
 		}
 
-		if skipToken[tok] {
-			continue
-		}
+		emitToken(prevLevel, prevTok, prevLit)
 
+		prevLevel, prevTok, prevLit = level, tok, lit
+	}
+
+	emitToken(prevLevel, prevTok, prevLit)
+}
+
+var spaces = "                                             " +
+	"                                                      " +
+	"                                                      " +
+	"                                                      "
+
+func emitToken(level int, tok token.Token, lit string) {
+	if tok != token.ILLEGAL {
 		if lit != "" {
 			fmt.Printf("%s%s %s\n", spaces[0:level], tok, lit)
 		} else {
