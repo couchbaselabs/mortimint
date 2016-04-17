@@ -123,12 +123,6 @@ func processEntry(dir, fname string, fileMeta *FileMeta,
 		return buf
 	}
 
-	fmt.Printf("************* (%s => %s:%d)\n", dir, fname, startLine)
-
-	for _, entryLine := range entryLines {
-		fmt.Println(entryLine)
-	}
-
 	firstLine := entryLines[0]
 
 	match := fileMeta.PrefixRE.FindStringSubmatch(firstLine)
@@ -150,7 +144,9 @@ func processEntry(dir, fname string, fileMeta *FileMeta,
 		firstLine,
 		fileMeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))))
 
-	fmt.Println(ts)
+	// fmt.Println(ts)
+	_ = ts
+	_ = fmt.Println
 
 	buf = buf[0:0]
 	for _, entryLine := range entryLines {
@@ -202,9 +198,9 @@ func emitTokens(s *scanner.Scanner) {
 		}
 
 		if lit != "" {
-			fmt.Printf("%s%s %s\n", spaces[0:level], tok, lit)
+			// fmt.Printf("%s%s %s\n", spaces[0:level], tok, lit)
 		} else {
-			fmt.Printf("%s%s\n", spaces[0:level], tok)
+			// fmt.Printf("%s%s\n", spaces[0:level], tok)
 		}
 	}
 }

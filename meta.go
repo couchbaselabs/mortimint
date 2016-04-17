@@ -111,7 +111,7 @@ var FileMetas = map[string]FileMeta{
 
 	"ns_server.couchdb.log": FileMetaNS,
 
-	// SKIP: "ns_server.debug.log": FileMetaNS, -- too big for now.
+	// TODO: "ns_server.debug.log": FileMetaNS, -- too big for now.
 
 	"ns_server.error.log": FileMetaNS,
 
