@@ -256,7 +256,7 @@ var spaces = "                                             " +
 func emitToken(level int, tok token.Token, lit string) {
 	if tok != token.ILLEGAL {
 		if lit != "" {
-			fmt.Printf("%s%s %s\n", spaces[0:level], tok, tokenLitString(tok, lit))
+			fmt.Printf("%s%s %s\n", spaces[0:level], tok, lit)
 		} else {
 			fmt.Printf("%s%s\n", spaces[0:level], tok)
 		}
