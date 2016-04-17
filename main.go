@@ -130,9 +130,25 @@ func processEntry(dir, fname string, fileMeta *FileMeta,
 	}
 
 	firstLine := entryLines[0]
+
 	match := fileMeta.PrefixRE.FindStringSubmatch(firstLine)
 	if len(match) > 0 {
 		entryLines[0] = firstLine[len(match[0]):]
+
+		subMatchIndex := fileMeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))
+
+		ts := string(fileMeta.PrefixRE.ExpandString(nil,
+			"${year}-${month}-${day}T${HH}:${MM}:${SS}-${SSSS} ${module} ${level}",
+			firstLine, subMatchIndex))
+
+		fmt.Println(ts)
+
+		matchParts := map[string]string{}
+		for i, name := range fileMeta.PrefixRE.SubexpNames() {
+			if i > 0 {
+				matchParts[name] = match[i]
+			}
+		}
 	}
 
 	buf = buf[0:0]
@@ -157,8 +173,6 @@ func processEntry(dir, fname string, fileMeta *FileMeta,
 }
 
 var spaces = "                                             " +
-	"                                                      " +
-	"                                                      " +
 	"                                                      " +
 	"                                                      " +
 	"                                                      "
