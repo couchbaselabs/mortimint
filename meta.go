@@ -34,6 +34,7 @@ var re_ns_server =
 // ------------------------------------------------------------
 
 type FileMeta struct {
+	Skip       bool
 	LineFirst  int
 	LineSample string
 	EntryStart func(string) bool
@@ -64,10 +65,7 @@ var FileMetas = map[string]FileMeta{
 
 	// TODO: "ddocs.log".
 
-	"diag.log": {
-		LineFirst:  7,
-		LineSample: `2016-04-14T16:10:14.825-07:00, ns_cookie_manager:3:info:cookie update(ns_1@127.0.0.1) - Initial otp cookie generated: vj`,
-	},
+	// TODO: "diag.log".
 
 	// SKIP: "ini.log" -- not a log file.
 
@@ -82,13 +80,16 @@ var FileMetas = map[string]FileMeta{
 
 	"ns_server.couchdb.log": FileMetaNS,
 
-	"ns_server.debug.log": FileMetaNS,
+	// SKIP: "ns_server.debug.log": FileMetaNS, -- too big for now.
 
 	"ns_server.error.log": FileMetaNS,
 
 	"ns_server.fts.log": {
 		LineFirst:  5,
 		LineSample: "2016-04-14T16:12:13.293-07:00 [INFO] main: /opt/couchbase/bin/cbft started",
+		EntryStart: func(line string) bool {
+			return len(line) > 0 && unicode.IsDigit(rune(line[0]))
+		},
 	},
 
 	"ns_server.goxdcr.log": {

@@ -18,6 +18,9 @@ import (
 	"log"
 	"os"
 	"path"
+
+	"go/scanner"
+	"go/token"
 )
 
 var ScannerBufferCapacity = 20*1024*1024
@@ -66,6 +69,12 @@ func processFile(dir, fname string) error {
 
 	fileMeta, exists := FileMetas[fname]
 	if !exists {
+		log.Printf("processFile, dir: %s, fname: %s, skipped, no file meta", dir, fname)
+		return nil
+	}
+
+	if fileMeta.Skip {
+		log.Printf("processFile, dir: %s, fname: %s, skipped", dir, fname)
 		return nil
 	}
 
@@ -107,11 +116,69 @@ func processFile(dir, fname string) error {
 	return scanner.Err()
 }
 
-func processEntry(dir, fname string, startLine int, lines []string) {
-	if startLine > 0 {
-		fmt.Printf("************* (%s => %s:%d)\n", dir, fname, startLine)
-		for _, entryLine := range lines {
-			fmt.Println(entryLine)
+func processEntry(dir, fname string, startLine int, entryLines []string) {
+	if startLine <= 0 {
+		return
+	}
+
+	fmt.Printf("************* (%s => %s:%d)\n", dir, fname, startLine)
+
+	nbytes := 0
+	for _, entryLine := range entryLines {
+		nbytes += len(entryLine)
+
+		fmt.Println(entryLine)
+	}
+
+	buf := make([]byte, 0, nbytes+len(entryLines))
+	for _, entryLine := range entryLines {
+		buf = append(buf, []byte(entryLine)...)
+		buf = append(buf, '\n')
+	}
+
+	// Hack to use go's scanner rather write our own.
+	var s scanner.Scanner
+	fset := token.NewFileSet()
+	file := fset.AddFile("", fset.Base(), len(buf)) // Fake file for buf.
+	s.Init(file, buf, nil /* No error handler. */, 0)
+
+	emitTokens(&s)
+}
+
+var spaces = "                                             "+
+	"                                                      "+
+	"                                                      "+
+	"                                                      "+
+	"                                                      "+
+	"                                                      "
+
+var levelDelta = map[token.Token]int {
+    token.LPAREN: 1,
+    token.RPAREN: -1, // )
+    token.LBRACK: 1,
+    token.RBRACK: -1, // ]
+    token.LBRACE: 1,
+    token.RBRACE: -1, // }
+}
+
+func emitTokens(s *scanner.Scanner) {
+	level := 0
+
+	for {
+		_, tok, lit := s.Scan()
+		if tok == token.EOF {
+			break
+		}
+
+		level += levelDelta[tok]
+		if level < 0 {
+			level = 0
+		}
+
+		if lit != "" {
+			fmt.Printf("%s%s %s\n", spaces[0:level], tok, lit)
+		} else {
+			fmt.Printf("%s%s\n", spaces[0:level], tok)
 		}
 	}
 }
