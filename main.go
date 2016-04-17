@@ -215,7 +215,7 @@ type tokLit struct {
 func (p *fileProcessor) emitTokens(s *scanner.Scanner) {
 	level := 0
 
-	tokLitPrev := make([]tokLit, 2)
+	tokLitPrev := make([]tokLit, 3) // Track 3 previous tokens.
 
 	for {
 		_, tok, lit := s.Scan()
@@ -247,13 +247,14 @@ func (p *fileProcessor) emitTokens(s *scanner.Scanner) {
 			level = 0
 		}
 
-		p.emitToken(&tokLitPrev[0])
+		p.emitToken(tokLitPrev)
 
+		tokLitPrev[2] = tokLitPrev[1]
 		tokLitPrev[1] = tokLitPrev[0]
 		tokLitPrev[0] = tokLit{level, tok, lit}
 	}
 
-	p.emitToken(&tokLitPrev[0])
+	p.emitToken(tokLitPrev)
 }
 
 func tokenLitString(tok token.Token, lit string) string {
@@ -269,7 +270,8 @@ var spaces = "                                             " +
 	"                                                      " +
 	"                                                      "
 
-func (p *fileProcessor) emitToken(x *tokLit) {
+func (p *fileProcessor) emitToken(tokLits []tokLit) {
+	x := &tokLits[0]
 	if x.tok != token.ILLEGAL {
 		if x.lit != "" {
 			fmt.Printf("%s%s %s\n", spaces[0:x.level], x.tok, x.lit)
