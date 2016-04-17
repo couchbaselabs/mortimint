@@ -103,43 +103,49 @@ func (p *fileProcessor) process() error {
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(nil, ScannerBufferCapacity)
 
-	var lineNum int
-	var entryStart int
+	var currOffset int
+	var currLine int
+	var entryStartOffset int
+	var entryStartLine int
 	var entryLines []string
 
 	for scanner.Scan() {
-		lineNum++
-		if lineNum <= p.fmeta.HeaderSize {
+		lineStr := scanner.Text()
+
+		currLine++
+		if currLine <= p.fmeta.HeaderSize {
+			currOffset += len(lineStr) + 1
 			continue
 		}
 
-		lineStr := scanner.Text()
 		if p.fmeta.EntryStart == nil ||
 			p.fmeta.EntryStart(lineStr) {
-			p.processEntry(entryStart, entryLines)
+			p.processEntry(entryStartOffset, entryStartLine, entryLines)
 
-			entryStart = lineNum
+			entryStartOffset = currOffset
+			entryStartLine = currLine
 			entryLines = entryLines[0:0]
 		}
 
 		entryLines = append(entryLines, lineStr)
+		currOffset += len(lineStr) + 1
 	}
 
-	p.processEntry(entryStart, entryLines)
+	p.processEntry(entryStartOffset, entryStartLine, entryLines)
 
 	return scanner.Err()
 }
 
-func (p *fileProcessor) processEntry(startLine int, entryLines []string) {
-	if startLine <= 0 || len(entryLines) <= 0 {
+func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string) {
+	if startLine <= 0 || len(lines) <= 0 {
 		return
 	}
 
-	for _, entryLine := range entryLines {
-		fmt.Println(entryLine)
+	for _, line := range lines {
+		fmt.Println(line)
 	}
 
-	firstLine := entryLines[0]
+	firstLine := lines[0]
 
 	match := p.fmeta.PrefixRE.FindStringSubmatch(firstLine)
 	if len(match) <= 0 {
@@ -153,7 +159,7 @@ func (p *fileProcessor) processEntry(startLine int, entryLines []string) {
 		}
 	}
 
-	entryLines[0] = firstLine[len(match[0]):]
+	lines[0] = firstLine[len(match[0]):]
 
 	ts := string(p.fmeta.PrefixRE.ExpandString(nil,
 		"${year}-${month}-${day}T${HH}:${MM}:${SS}-${SSSS}",
@@ -161,8 +167,8 @@ func (p *fileProcessor) processEntry(startLine int, entryLines []string) {
 		p.fmeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))))
 
 	p.buf = p.buf[0:0]
-	for _, entryLine := range entryLines {
-		p.buf = append(p.buf, []byte(entryLine)...)
+	for _, line := range lines {
+		p.buf = append(p.buf, []byte(line)...)
 		p.buf = append(p.buf, '\n')
 	}
 
