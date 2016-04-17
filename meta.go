@@ -52,9 +52,9 @@ var re_ns = regexp.MustCompile(`^\[(?P<module>\w+):(?P<level>\w+),` + ymd + hms 
 // FileMeta represents metadata about a file that needs to be parsed.
 type FileMeta struct {
 	Skip       bool
-	HeaderSize int // The number of lines in a skippable header.
+	HeaderSize int                    // The number of lines in a skippable header.
 	EntryStart func(line string) bool // Returns true if the line starts a new entry.
-	PrefixRE   *regexp.Regexp // Used to parse the first line of an entry.
+	PrefixRE   *regexp.Regexp         // Used to parse the first line of an entry.
 	Prefix     []byte
 	Cleanser   func([]byte) []byte
 }
@@ -119,7 +119,7 @@ var FileMetas = map[string]FileMeta{
 
 	"memcached.log": {
 		HeaderSize: 4,
-		PrefixRE:  re_usual,
+		PrefixRE:   re_usual,
 	},
 
 	"ns_server.babysitter.log": FileMetaNS,
@@ -140,16 +140,16 @@ var FileMetas = map[string]FileMeta{
 
 	"ns_server.goxdcr.log": {
 		HeaderSize: 4,
-		PrefixRE:  re_usual_ex,
+		PrefixRE:   re_usual_ex,
 	},
 
 	"ns_server.http_access.log": {
-		Skip:      true,
+		Skip:       true,
 		HeaderSize: 4,
 	},
 
 	"ns_server.http_access_internal.log": {
-		Skip:      true,
+		Skip:       true,
 		HeaderSize: 4,
 	},
 
@@ -165,7 +165,7 @@ var FileMetas = map[string]FileMeta{
 
 	"ns_server.projector.log": {
 		HeaderSize: 4,
-		PrefixRE:  re_usual,
+		PrefixRE:   re_usual,
 	},
 
 	// TODO: "ns_server.query.log".

@@ -189,8 +189,8 @@ var levelDelta = map[token.Token]int{
 }
 
 var skipToken = map[token.Token]bool{
-    token.SHL: true, // <<
-    token.SHR: true, // >>
+	token.SHL: true, // <<
+	token.SHR: true, // >>
 }
 
 func emitTokens(s *scanner.Scanner) {
