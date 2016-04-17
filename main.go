@@ -151,7 +151,6 @@ func processEntry(dir, fname string, fmeta *FileMeta,
 		fmeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))))
 
 	buf = buf[0:0]
-	buf = append(buf, fmeta.Prefix...)
 	for _, entryLine := range entryLines {
 		buf = append(buf, []byte(entryLine)...)
 		buf = append(buf, '\n')

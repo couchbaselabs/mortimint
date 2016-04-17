@@ -56,7 +56,6 @@ type FileMeta struct {
 	HeaderSize int                    // The number of lines in a skippable header.
 	EntryStart func(line string) bool // Returns true if the line starts a new entry.
 	PrefixRE   *regexp.Regexp         // Used to parse the first line of an entry.
-	Prefix     []byte
 	Cleanser   func([]byte) []byte
 }
 
@@ -86,8 +85,16 @@ var FileMetaNS = FileMeta{
 		return unicode.IsDigit(rune(lineParts[1][0]))
 	},
 	PrefixRE: re_ns,
-	Prefix:   []byte("["),
 	Cleanser: func(s []byte) []byte {
+		// Clear out first non-matching ']'.
+		rbrack := bytes.Index(s, []byte("]"))
+		if rbrack >= 0 {
+			lbrack := bytes.Index(s, []byte("["))
+			if lbrack < 0 || rbrack < lbrack {
+				s[rbrack] = ' '
+			}
+		}
+
 		// Convert `=============PROGRESS REPORT=============`
 		// into `"PROGRESS REPORT"`
 		s = equals_bar_re.ReplaceAll(s, equals_bar_replace)
