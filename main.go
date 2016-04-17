@@ -187,9 +187,10 @@ var levelDelta = map[token.Token]int{
 	token.FLOAT:  0,
 	token.STRING: 0,
 
-	token.COLON:  0,
-	token.COMMA:  0,
-	token.PERIOD: 0,
+	token.COLON:     0,
+	token.COMMA:     0,
+	token.PERIOD:    0,
+	token.SEMICOLON: 0,
 }
 
 var skipToken = map[token.Token]bool{
