@@ -12,6 +12,7 @@
 package main
 
 import (
+	"bytes"
 	"regexp"
 	"strings"
 	"unicode"
@@ -136,6 +137,9 @@ var FileMetas = map[string]FileMeta{
 			return len(line) > 0 && unicode.IsDigit(rune(line[0]))
 		},
 		PrefixRE: re_usual,
+		Cleanser: func(s []byte) []byte {
+			return bytes.Replace(s, []byte("\n"), []byte(""), -1)
+		},
 	},
 
 	"ns_server.goxdcr.log": {
