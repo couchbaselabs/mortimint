@@ -23,29 +23,47 @@ var WantSuffixes = map[string]bool {
 
 // From memcached.log...
 //   2016-04-14T16:10:09.463447-07:00 WARNING Restarting file logging
+//
+// From ns_server.fts.log...
+//   2016-04-14T17:43:52.164-07:00 [INFO] moss_herder: persistence progess, waiting: 3
+//
 // From ns_server.babysitter.log...
 //   [error_logger:info,2016-04-14T16:10:05.262-07:00,babysitter_of_ns_1@127.0.0.1
+//
+// From ns_server.goxdcr.log...
+//   ReplicationManager 2016-04-14T16:10:09.652-07:00 [INFO] GOMAXPROCS=4
+//
+// From ns_server.http_access.log...
+//   172.23.123.146 - Administrator [14/Apr/2016:16:10:19 -0700] \
+//     "GET /nodes/self HTTP/1.1" 200 1727 - Python-httplib2/$Rev: 259 $
 
-var re_memcached =
-	regexp.MustCompile(`^(\d\d\d\d)-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)\.(\d\d\d)`)
-var re_ns_server =
-	regexp.MustCompile(`^\[\w+,(\d\d\d\d)-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)\.(\d\d\d)`)
+var ymd = `(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)`
+var hms = `T(?P<HH>\d\d):(?P<MM>\d\d):(?P<SS>\d\d)\.(?P<SSSS>\d+)`
+
+var re_usual =
+	regexp.MustCompile(`^`+ymd+hms+`-\S+\s(?P<level>\S+)\s`)
+
+var re_usual_ex =
+	regexp.MustCompile(`^(?P<module>\w+)\s`+ymd+hms+`-\S+\s(?P<level>\S+)\s`)
+
+var re_ns =
+	regexp.MustCompile(`^\[(?P<module>\w+):(?P<level>\w+),`+ymd+hms+`-[^,]+,`)
 
 // ------------------------------------------------------------
 
+// FileMeta represents metadata about a file that needs to be parsed.
 type FileMeta struct {
-	Skip       bool
-	LineFirst  int
-	LineSample string
-	EntryStart func(string) bool
+	Skip        bool
+	FirstLine   int // The line number where actual entries start.
+	EntryStart  func(string) bool
+	PrefixRegexp *regexp.Regexp
 }
 
+// ------------------------------------------------------------
+
+// FileMeta represents metadata about a ns-server log file.
 var FileMetaNS = FileMeta{
-	LineFirst:  5,
-	LineSample: `[ns_server:debug,2016-04-14T16:10:05.262-07:00,babysitter_of_ns_1@127.0.0.1:<0.65.0>:restartable:start_child:98]Started child process <0.66.0>
-  MFA: {supervisor_cushion,start_link,
-                           [ns_server,5000,infinity,ns_port_server,start_link,
-                            [#Fun<ns_child_ports_sup.2.49698737>]]}`,
+	FirstLine:  5,
 	EntryStart: func(line string) bool {
 		if len(line) <= 0 ||
 			line[0] != '[' {
@@ -57,10 +75,16 @@ var FileMetaNS = FileMeta{
 		}
 		return unicode.IsDigit(rune(lineParts[1][0]))
 	},
+	PrefixRegexp: re_ns,
 }
 
-// FileMetas is keyed by file name.
+// ------------------------------------------------------------
+
+// FileMetas is keyed by file name and represents metadata for the
+// various types of files that we need to parse.
 var FileMetas = map[string]FileMeta{
+	// Alphabetically...
+
 	// TODO: "couchbase.log".
 
 	// TODO: "ddocs.log".
@@ -72,8 +96,8 @@ var FileMetas = map[string]FileMeta{
 	// TODO: "master_events.log".
 
 	"memcached.log": {
-		LineFirst:  5,
-		LineSample: "2016-04-14T16:10:09.463447-07:00 WARNING Restarting file logging",
+		FirstLine:   5,
+		PrefixRegexp: re_usual,
 	},
 
 	"ns_server.babysitter.log": FileMetaNS,
@@ -85,26 +109,26 @@ var FileMetas = map[string]FileMeta{
 	"ns_server.error.log": FileMetaNS,
 
 	"ns_server.fts.log": {
-		LineFirst:  5,
-		LineSample: "2016-04-14T16:12:13.293-07:00 [INFO] main: /opt/couchbase/bin/cbft started",
+		FirstLine:  5,
 		EntryStart: func(line string) bool {
 			return len(line) > 0 && unicode.IsDigit(rune(line[0]))
 		},
+		PrefixRegexp: re_usual,
 	},
 
 	"ns_server.goxdcr.log": {
-		LineFirst:  5,
-		LineSample: "ReplicationManager 2016-04-14T16:10:09.652-07:00 [INFO] GOMAXPROCS=4",
+		FirstLine:   5,
+		PrefixRegexp: re_usual_ex,
 	},
 
 	"ns_server.http_access.log": {
-		LineFirst:  5,
-		LineSample: `172.23.123.146 - Administrator [14/Apr/2016:16:10:19 -0700] "GET /nodes/self HTTP/1.1" 200 1727 - Python-httplib2/$Rev: 259 $`,
+		Skip:      true,
+		FirstLine: 5,
 	},
 
 	"ns_server.http_access_internal.log": {
-		LineFirst:  5,
-		LineSample: `127.0.0.1 - @ [14/Apr/2016:16:10:09 -0700] "RPCCONNECT /saslauthd-saslauthd-port HTTP/1.1" 200 0 - Go-http-client/1.1`,
+		Skip:      true,
+		FirstLine: 5,
 	},
 
 	// TODO: "ns_server.indexer.log".
@@ -118,8 +142,8 @@ var FileMetas = map[string]FileMeta{
 	"ns_server.ns_couchdb.log": FileMetaNS,
 
 	"ns_server.projector.log": {
-		LineFirst:  5,
-		LineSample: `2016-04-14T16:10:30.378-07:00 [Info] Parsing the args`,
+		FirstLine:   5,
+		PrefixRegexp: re_usual,
 	},
 
 	// TODO: "ns_server.query.log".

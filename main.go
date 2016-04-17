@@ -96,7 +96,7 @@ func processFile(dir, fname string) error {
 
 	for scanner.Scan() {
 		lineNum++
-		if lineNum < fileMeta.LineFirst {
+		if lineNum < fileMeta.FirstLine {
 			continue
 		}
 
@@ -118,7 +118,7 @@ func processFile(dir, fname string) error {
 }
 
 func processEntry(dir, fname string, startLine int, entryLines []string, buf []byte) []byte {
-	if startLine <= 0 {
+	if startLine <= 0 || len(entryLines) <= 0 {
 		return buf
 	}
 
