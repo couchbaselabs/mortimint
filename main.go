@@ -132,24 +132,25 @@ func processEntry(dir, fname string, fileMeta *FileMeta,
 	firstLine := entryLines[0]
 
 	match := fileMeta.PrefixRE.FindStringSubmatch(firstLine)
-	if len(match) > 0 {
-		entryLines[0] = firstLine[len(match[0]):]
+	if len(match) <= 0 {
+		return buf
+	}
 
-		subMatchIndex := fileMeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))
-
-		ts := string(fileMeta.PrefixRE.ExpandString(nil,
-			"${year}-${month}-${day}T${HH}:${MM}:${SS}-${SSSS} ${module} ${level}",
-			firstLine, subMatchIndex))
-
-		fmt.Println(ts)
-
-		matchParts := map[string]string{}
-		for i, name := range fileMeta.PrefixRE.SubexpNames() {
-			if i > 0 {
-				matchParts[name] = match[i]
-			}
+	matchParts := map[string]string{}
+	for i, name := range fileMeta.PrefixRE.SubexpNames() {
+		if i > 0 {
+			matchParts[name] = match[i]
 		}
 	}
+
+	entryLines[0] = firstLine[len(match[0]):]
+
+	ts := string(fileMeta.PrefixRE.ExpandString(nil,
+		"${year}-${month}-${day}T${HH}:${MM}:${SS}-${SSSS}",
+		firstLine,
+		fileMeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))))
+
+	fmt.Println(ts)
 
 	buf = buf[0:0]
 	for _, entryLine := range entryLines {
