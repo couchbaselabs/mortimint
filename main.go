@@ -181,6 +181,15 @@ var levelDelta = map[token.Token]int{
 	token.RBRACK: -1, // ]
 	token.LBRACE: 1,
 	token.RBRACE: -1, // }
+
+	token.CHAR:   0,
+	token.INT:    0,
+	token.FLOAT:  0,
+	token.STRING: 0,
+
+	token.COLON:  0,
+	token.COMMA:  0,
+	token.PERIOD: 0,
 }
 
 var skipToken = map[token.Token]bool{
@@ -205,12 +214,19 @@ func emitTokens(s *scanner.Scanner) {
 			continue
 		}
 
-		if tok == token.IDENT && prevTok == token.IDENT {
-			prevLit = prevLit + " " + lit
-			continue
+		delta, deltaExists := levelDelta[tok]
+		if !deltaExists && prevTok != token.ILLEGAL {
+			_, prevDeltaExists := levelDelta[prevTok]
+			if !prevDeltaExists {
+				prevLit =
+					tokenLitString(prevTok, prevLit) + " " +
+						tokenLitString(tok, lit)
+
+				continue
+			}
 		}
 
-		level += levelDelta[tok]
+		level += delta
 		if level < 0 {
 			level = 0
 		}
@@ -223,6 +239,14 @@ func emitTokens(s *scanner.Scanner) {
 	emitToken(prevLevel, prevTok, prevLit)
 }
 
+func tokenLitString(tok token.Token, lit string) string {
+	if lit != "" {
+		return lit
+	}
+
+	return tok.String()
+}
+
 var spaces = "                                             " +
 	"                                                      " +
 	"                                                      " +
@@ -231,7 +255,7 @@ var spaces = "                                             " +
 func emitToken(level int, tok token.Token, lit string) {
 	if tok != token.ILLEGAL {
 		if lit != "" {
-			fmt.Printf("%s%s %s\n", spaces[0:level], tok, lit)
+			fmt.Printf("%s%s %s\n", spaces[0:level], tok, tokenLitString(tok, lit))
 		} else {
 			fmt.Printf("%s%s\n", spaces[0:level], tok)
 		}
