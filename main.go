@@ -92,6 +92,7 @@ func processFile(dir, fname string) error {
 	var lineNum int
 	var entryStart int
 	var entryLines []string
+	var buf []byte
 
 	for scanner.Scan() {
 		lineNum++
@@ -102,7 +103,7 @@ func processFile(dir, fname string) error {
 		lineStr := scanner.Text()
 		if fileMeta.EntryStart == nil ||
 			fileMeta.EntryStart(lineStr) {
-			processEntry(dir, fname, entryStart, entryLines)
+			buf = processEntry(dir, fname, entryStart, entryLines, buf)
 
 			entryStart = lineNum
 			entryLines = entryLines[0:0]
@@ -111,14 +112,14 @@ func processFile(dir, fname string) error {
 		entryLines = append(entryLines, lineStr)
 	}
 
-	processEntry(dir, fname, entryStart, entryLines)
+	buf = processEntry(dir, fname, entryStart, entryLines, buf)
 
 	return scanner.Err()
 }
 
-func processEntry(dir, fname string, startLine int, entryLines []string) {
+func processEntry(dir, fname string, startLine int, entryLines []string, buf []byte) []byte {
 	if startLine <= 0 {
-		return
+		return buf
 	}
 
 	fmt.Printf("************* (%s => %s:%d)\n", dir, fname, startLine)
@@ -130,7 +131,7 @@ func processEntry(dir, fname string, startLine int, entryLines []string) {
 		fmt.Println(entryLine)
 	}
 
-	buf := make([]byte, 0, nbytes+len(entryLines))
+	buf = buf[0:0]
 	for _, entryLine := range entryLines {
 		buf = append(buf, []byte(entryLine)...)
 		buf = append(buf, '\n')
@@ -143,6 +144,8 @@ func processEntry(dir, fname string, startLine int, entryLines []string) {
 	s.Init(file, buf, nil /* No error handler. */, 0)
 
 	emitTokens(&s)
+
+	return buf
 }
 
 var spaces = "                                             "+
