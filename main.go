@@ -68,6 +68,8 @@ func processDir(dir string) error {
 	return nil
 }
 
+// ------------------------------------------------------------
+
 type fileProcessor struct {
 	dir   string
 	fname string

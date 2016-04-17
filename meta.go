@@ -23,6 +23,19 @@ var WantSuffixes = map[string]bool{
 	".log": true,
 }
 
+// ------------------------------------------------------------
+
+// FileMeta represents metadata about a file that needs to be parsed.
+type FileMeta struct {
+	Skip       bool                   // When true, ignore this FileMeta.
+	HeaderSize int                    // The number of lines in a skippable header.
+	EntryStart func(line string) bool // Optional, returns true when a line starts a new entry.
+	PrefixRE   *regexp.Regexp         // Used to parse the first line of an entry.
+	Cleanser   func([]byte) []byte    // Optional, called before tokenizing an entry.
+}
+
+// ------------------------------------------------------------
+
 // From memcached.log...
 //   2016-04-14T16:10:09.463447-07:00 WARNING Restarting file logging
 //
@@ -47,17 +60,6 @@ var re_usual = regexp.MustCompile(`^` + ymd + hms + `-\S+\s(?P<level>\S+)\s`)
 var re_usual_ex = regexp.MustCompile(`^(?P<module>\w+)\s` + ymd + hms + `-\S+\s(?P<level>\S+)\s`)
 
 var re_ns = regexp.MustCompile(`^\[(?P<module>\w+):(?P<level>\w+),` + ymd + hms + `-[^,]+,`)
-
-// ------------------------------------------------------------
-
-// FileMeta represents metadata about a file that needs to be parsed.
-type FileMeta struct {
-	Skip       bool
-	HeaderSize int                    // The number of lines in a skippable header.
-	EntryStart func(line string) bool // Returns true if the line starts a new entry.
-	PrefixRE   *regexp.Regexp         // Used to parse the first line of an entry.
-	Cleanser   func([]byte) []byte
-}
 
 // ------------------------------------------------------------
 
@@ -112,9 +114,7 @@ var FileMetaNS = FileMeta{
 // ------------------------------------------------------------
 
 // FileMetas is keyed by file name.
-var FileMetas = map[string]FileMeta{
-	// Alphabetically...
-
+var FileMetas = map[string]FileMeta{ // Keep alphabetical...
 	// TODO: "couchbase.log".
 
 	// TODO: "ddocs.log".
