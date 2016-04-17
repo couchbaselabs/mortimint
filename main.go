@@ -197,12 +197,17 @@ var skipToken = map[token.Token]bool{
 	token.SHR: true, // >>
 }
 
+// A tokLit associates a token and a literal string.
+type tokLit struct {
+	level int
+	tok   token.Token
+    lit   string
+}
+
 func emitTokens(s *scanner.Scanner) {
 	level := 0
 
-	var prevLevel int
-	var prevTok token.Token
-	var prevLit string
+	tokLitPrev := make([]tokLit, 2)
 
 	for {
 		_, tok, lit := s.Scan()
@@ -214,12 +219,15 @@ func emitTokens(s *scanner.Scanner) {
 			continue
 		}
 
+		// If the token doesn't have a level delta, and is merge'able
+		// with the previous tokLit, then merge.  For example, this
+		// merges an IDENT that's followed by an IDENT.
 		delta, deltaExists := levelDelta[tok]
-		if !deltaExists && prevTok != token.ILLEGAL {
-			_, prevDeltaExists := levelDelta[prevTok]
+		if !deltaExists && tokLitPrev[0].tok != token.ILLEGAL {
+			_, prevDeltaExists := levelDelta[tokLitPrev[0].tok]
 			if !prevDeltaExists {
-				prevLit =
-					tokenLitString(prevTok, prevLit) + " " +
+				tokLitPrev[0].lit =
+					tokenLitString(tokLitPrev[0].tok, tokLitPrev[0].lit) + " " +
 						tokenLitString(tok, lit)
 
 				continue
@@ -231,12 +239,13 @@ func emitTokens(s *scanner.Scanner) {
 			level = 0
 		}
 
-		emitToken(prevLevel, prevTok, prevLit)
+		emitToken(&tokLitPrev[0])
 
-		prevLevel, prevTok, prevLit = level, tok, lit
+		tokLitPrev[1] = tokLitPrev[0]
+		tokLitPrev[0] = tokLit{level, tok, lit}
 	}
 
-	emitToken(prevLevel, prevTok, prevLit)
+	emitToken(&tokLitPrev[0])
 }
 
 func tokenLitString(tok token.Token, lit string) string {
@@ -252,12 +261,12 @@ var spaces = "                                             " +
 	"                                                      " +
 	"                                                      "
 
-func emitToken(level int, tok token.Token, lit string) {
-	if tok != token.ILLEGAL {
-		if lit != "" {
-			fmt.Printf("%s%s %s\n", spaces[0:level], tok, lit)
+func emitToken(x *tokLit) {
+	if x.tok != token.ILLEGAL {
+		if x.lit != "" {
+			fmt.Printf("%s%s %s\n", spaces[0:x.level], x.tok, x.lit)
 		} else {
-			fmt.Printf("%s%s\n", spaces[0:level], tok)
+			fmt.Printf("%s%s\n", spaces[0:x.level], x.tok)
 		}
 	}
 }
