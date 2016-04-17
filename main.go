@@ -98,7 +98,7 @@ func processFile(dir, fname string) error {
 
 	for scanner.Scan() {
 		lineNum++
-		if lineNum < fmeta.FirstLine {
+		if lineNum <= fmeta.HeaderSize {
 			continue
 		}
 
@@ -125,6 +125,10 @@ func processEntry(dir, fname string, fmeta *FileMeta,
 		return buf
 	}
 
+	for _, entryLine := range entryLines {
+		fmt.Println(entryLine)
+	}
+
 	firstLine := entryLines[0]
 
 	match := fmeta.PrefixRE.FindStringSubmatch(firstLine)
@@ -147,6 +151,7 @@ func processEntry(dir, fname string, fmeta *FileMeta,
 		fmeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))))
 
 	buf = buf[0:0]
+	buf = append(buf, fmeta.Prefix...)
 	for _, entryLine := range entryLines {
 		buf = append(buf, []byte(entryLine)...)
 		buf = append(buf, '\n')

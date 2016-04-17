@@ -17,6 +17,7 @@ import (
 	"unicode"
 )
 
+// WantSuffixes lists the file suffixes that we care about.
 var WantSuffixes = map[string]bool{
 	".log": true,
 }
@@ -51,9 +52,10 @@ var re_ns = regexp.MustCompile(`^\[(?P<module>\w+):(?P<level>\w+),` + ymd + hms 
 // FileMeta represents metadata about a file that needs to be parsed.
 type FileMeta struct {
 	Skip       bool
-	FirstLine  int // The line number where actual entries start.
-	EntryStart func(string) bool
-	PrefixRE   *regexp.Regexp
+	HeaderSize int // The number of lines in a skippable header.
+	EntryStart func(line string) bool // Returns true if the line starts a new entry.
+	PrefixRE   *regexp.Regexp // Used to parse the first line of an entry.
+	Prefix     []byte
 	Cleanser   func([]byte) []byte
 }
 
@@ -68,9 +70,9 @@ var ns_pid_replace = []byte(`"$1"`)
 var ns_addr_re = regexp.MustCompile(`(ns_\d+@\d+\.\d+\.\d+.\d+)`)
 var ns_addr_replace = []byte(`"$1"`)
 
-// FileMeta represents metadata about a ns-server log file.
+// FileMeta represents metadata about an ns-server log file.
 var FileMetaNS = FileMeta{
-	FirstLine: 5,
+	HeaderSize: 4,
 	EntryStart: func(line string) bool {
 		if len(line) <= 0 ||
 			line[0] != '[' {
@@ -83,6 +85,7 @@ var FileMetaNS = FileMeta{
 		return unicode.IsDigit(rune(lineParts[1][0]))
 	},
 	PrefixRE: re_ns,
+	Prefix:   []byte("["),
 	Cleanser: func(s []byte) []byte {
 		// Convert `=============PROGRESS REPORT=============`
 		// into `"PROGRESS REPORT"`
@@ -100,8 +103,7 @@ var FileMetaNS = FileMeta{
 
 // ------------------------------------------------------------
 
-// FileMetas is keyed by file name and represents metadata for the
-// various types of files that we need to parse.
+// FileMetas is keyed by file name.
 var FileMetas = map[string]FileMeta{
 	// Alphabetically...
 
@@ -116,7 +118,7 @@ var FileMetas = map[string]FileMeta{
 	// TODO: "master_events.log".
 
 	"memcached.log": {
-		FirstLine: 5,
+		HeaderSize: 4,
 		PrefixRE:  re_usual,
 	},
 
@@ -129,7 +131,7 @@ var FileMetas = map[string]FileMeta{
 	"ns_server.error.log": FileMetaNS,
 
 	"ns_server.fts.log": {
-		FirstLine: 5,
+		HeaderSize: 4,
 		EntryStart: func(line string) bool {
 			return len(line) > 0 && unicode.IsDigit(rune(line[0]))
 		},
@@ -137,18 +139,18 @@ var FileMetas = map[string]FileMeta{
 	},
 
 	"ns_server.goxdcr.log": {
-		FirstLine: 5,
+		HeaderSize: 4,
 		PrefixRE:  re_usual_ex,
 	},
 
 	"ns_server.http_access.log": {
 		Skip:      true,
-		FirstLine: 5,
+		HeaderSize: 4,
 	},
 
 	"ns_server.http_access_internal.log": {
 		Skip:      true,
-		FirstLine: 5,
+		HeaderSize: 4,
 	},
 
 	// TODO: "ns_server.indexer.log".
@@ -162,7 +164,7 @@ var FileMetas = map[string]FileMeta{
 	"ns_server.ns_couchdb.log": FileMetaNS,
 
 	"ns_server.projector.log": {
-		FirstLine: 5,
+		HeaderSize: 4,
 		PrefixRE:  re_usual,
 	},
 
