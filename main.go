@@ -189,7 +189,7 @@ var levelDelta = map[token.Token]int{
 	token.LBRACE: 1,
 	token.RBRACE: -1, // }
 
-	token.CHAR:   0,
+	token.CHAR:   0, // When 0, don't change level, and don't merge neighbors.
 	token.INT:    0,
 	token.FLOAT:  0,
 	token.STRING: 0,
