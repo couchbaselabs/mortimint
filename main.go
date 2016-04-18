@@ -184,7 +184,7 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 
 	fmt.Println(ts)
 
-	p.emitTokens(&s)
+	p.processEntryScanner(&s, 0)
 }
 
 var levelDelta = map[token.Token]int{
@@ -218,10 +218,8 @@ type tokLit struct {
 	lit   string
 }
 
-func (p *fileProcessor) emitTokens(s *scanner.Scanner) {
-	level := 0
-
-	tokLitPrev := make([]tokLit, 3) // Track 3 previous tokens.
+func (p *fileProcessor) processEntryScanner(s *scanner.Scanner, level int) {
+	tokLits := make([]tokLit, 4) // Track some previous tokens.
 
 	for {
 		_, tok, lit := s.Scan()
@@ -237,30 +235,31 @@ func (p *fileProcessor) emitTokens(s *scanner.Scanner) {
 		// with the previous tokLit, then merge.  For example, this
 		// merges an IDENT that's followed by an IDENT.
 		delta, deltaExists := levelDelta[tok]
-		if !deltaExists && tokLitPrev[0].tok != token.ILLEGAL {
-			_, prevDeltaExists := levelDelta[tokLitPrev[0].tok]
+		if !deltaExists && tokLits[0].tok != token.ILLEGAL {
+			_, prevDeltaExists := levelDelta[tokLits[0].tok]
 			if !prevDeltaExists {
-				tokLitPrev[0].lit =
-					tokenLitString(tokLitPrev[0].tok, tokLitPrev[0].lit) + " " +
+				tokLits[0].lit =
+					tokenLitString(tokLits[0].tok, tokLits[0].lit) + " " +
 						tokenLitString(tok, lit)
-
 				continue
 			}
 		}
 
-		level += delta
-		if level < 0 {
-			level = 0
+		tokLits[3] = tokLits[2]
+		tokLits[2] = tokLits[1]
+		tokLits[1] = tokLits[0]
+		tokLits[0] = tokLit{level, tok, lit}
+
+		p.processEntryTokLits(tokLits)
+
+		if delta > 0 {
+			p.processEntryScanner(s, level+1)
+		} else if delta < 0 {
+			return
 		}
-
-		p.emitToken(tokLitPrev)
-
-		tokLitPrev[2] = tokLitPrev[1]
-		tokLitPrev[1] = tokLitPrev[0]
-		tokLitPrev[0] = tokLit{level, tok, lit}
 	}
 
-	p.emitToken(tokLitPrev)
+	p.processEntryTokLits(tokLits)
 }
 
 func tokenLitString(tok token.Token, lit string) string {
@@ -276,7 +275,7 @@ var spaces = "                                             " +
 	"                                                      " +
 	"                                                      "
 
-func (p *fileProcessor) emitToken(tokLits []tokLit) {
+func (p *fileProcessor) processEntryTokLits(tokLits []tokLit) {
 	x := &tokLits[0]
 	if x.tok != token.ILLEGAL {
 		if x.lit != "" {
