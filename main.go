@@ -142,7 +142,9 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 	}
 
 	for _, line := range lines {
-		fmt.Println(line)
+		// fmt.Println(line)
+		_ = fmt.Println
+		_ = line
 	}
 
 	firstLine := lines[0]
@@ -184,7 +186,7 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 
 	fmt.Println(ts)
 
-	p.processEntryScanner(&s, nil)
+	p.processEntryScanner(ts, &s, nil)
 }
 
 var levelDelta = map[token.Token]int{
@@ -218,7 +220,8 @@ type tokLit struct {
 	lit   string
 }
 
-func (p *fileProcessor) processEntryScanner(s *scanner.Scanner, path []string) {
+func (p *fileProcessor) processEntryScanner(ts string,
+	s *scanner.Scanner, path []string) {
 	level := len(path)
 
 	tokLits := make([]tokLit, 4) // Track some previous tokens.
@@ -252,7 +255,7 @@ func (p *fileProcessor) processEntryScanner(s *scanner.Scanner, path []string) {
 		tokLits[1] = tokLits[0]
 		tokLits[0] = tokLit{level, tok, lit}
 
-		p.processEntryTokLits(path, tokLits)
+		p.processEntryTokLits(ts, path, tokLits)
 
 		if delta > 0 {
 			pathSub := path
@@ -261,13 +264,13 @@ func (p *fileProcessor) processEntryScanner(s *scanner.Scanner, path []string) {
 				pathSub = append(pathSub, pathPart)
 			}
 
-			p.processEntryScanner(s, pathSub) // Recurse.
+			p.processEntryScanner(ts, s, pathSub) // Recurse.
 		} else if delta < 0 {
 			return
 		}
 	}
 
-	p.processEntryTokLits(path, tokLits)
+	p.processEntryTokLits(ts, path, tokLits)
 }
 
 func tokenLitString(tok token.Token, lit string) string {
@@ -283,12 +286,13 @@ var spaces = "                                             " +
 	"                                                      " +
 	"                                                      "
 
-func (p *fileProcessor) processEntryTokLits(path []string, tokLits []tokLit) {
+func (p *fileProcessor) processEntryTokLits(ts string,
+	path []string, tokLits []tokLit) {
 	x := &tokLits[0]
 	if x.tok == token.INT {
 		name := pathPartFromTokLits(tokLits)
 		if name != "" {
-			fmt.Printf("  %+v %s = %s %s\n", path, name, x.tok, x.lit)
+			fmt.Printf("  %s %+v %s = %s %s\n", ts, path, name, x.tok, x.lit)
 		}
 	}
 }
