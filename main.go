@@ -266,7 +266,7 @@ func (p *fileProcessor) processEntryScanner(ts string,
 
 		if delta > 0 {
 			pathSub := path
-			pathPart := nameFromTokLits(tokLits)
+			pathPart := nameFromTokLits(tokLits, 1)
 			if pathPart != "" {
 				pathSub = append(pathSub, pathPart)
 			}
@@ -277,7 +277,12 @@ func (p *fileProcessor) processEntryScanner(ts string,
 		}
 	}
 
-	p.processEntryTokLits(ts, path, tokLits)
+	if p.processEntryTokLits(ts, path, tokLits) == "" {
+		suffix := nameFromTokLits(tokLits, 0)
+		if suffix != "" {
+			fmt.Printf("  %s %+v %s\n", ts, path, suffix)
+		}
+	}
 }
 
 func tokenLitString(tok token.Token, lit string) string {
@@ -291,12 +296,11 @@ func tokenLitString(tok token.Token, lit string) string {
 // processEntryTokLits treats the 0'th entry in the tokLits as the
 // latest tokLit.
 func (p *fileProcessor) processEntryTokLits(ts string,
-	path []string, tokLits []tokLit) {
+	path []string, tokLits []tokLit) string {
 	x := &tokLits[0]
-	if x.tok == token.INT {
-		name := nameFromTokLits(tokLits)
+	if x.tok == token.INT || x.tok == token.STRING {
+		name := nameFromTokLits(tokLits, 1)
 		if name != "" {
-
 			if len(path) <= 0 {
 				path = strings.Split(name, " ")
 				name = path[len(path)-1]
@@ -304,14 +308,18 @@ func (p *fileProcessor) processEntryTokLits(ts string,
 			}
 
 			fmt.Printf("  %s %+v %s = %s %s\n", ts, path, name, x.tok, x.lit)
+
+			return x.lit
 		}
 	}
+
+	return ""
 }
 
 // nameFromTokLits returns the last IDENT or STRING from the tokLits,
 // which the caller can use as a name.
-func nameFromTokLits(tokLits []tokLit) string {
-	for i := 1; i < len(tokLits); i++ {
+func nameFromTokLits(tokLits []tokLit, startAt int) string {
+	for i := startAt; i < len(tokLits); i++ {
 		tok := tokLits[i].tok
 		if tok == token.IDENT || tok == token.STRING {
 			return tokLits[i].lit
