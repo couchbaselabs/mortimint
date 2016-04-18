@@ -184,7 +184,7 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 
 	fmt.Println(ts)
 
-	p.processEntryScanner(&s, 0)
+	p.processEntryScanner(&s, nil)
 }
 
 var levelDelta = map[token.Token]int{
@@ -218,7 +218,9 @@ type tokLit struct {
 	lit   string
 }
 
-func (p *fileProcessor) processEntryScanner(s *scanner.Scanner, level int) {
+func (p *fileProcessor) processEntryScanner(s *scanner.Scanner, path []string) {
+	level := len(path)
+
 	tokLits := make([]tokLit, 4) // Track some previous tokens.
 
 	for {
@@ -250,16 +252,22 @@ func (p *fileProcessor) processEntryScanner(s *scanner.Scanner, level int) {
 		tokLits[1] = tokLits[0]
 		tokLits[0] = tokLit{level, tok, lit}
 
-		p.processEntryTokLits(tokLits)
+		p.processEntryTokLits(path, tokLits)
 
 		if delta > 0 {
-			p.processEntryScanner(s, level+1)
+			pathSub := path
+			pathPart := pathPartFromTokLits(tokLits)
+			if pathPart != "" {
+				pathSub = append(pathSub, pathPart)
+			}
+
+			p.processEntryScanner(s, pathSub) // Recurse.
 		} else if delta < 0 {
 			return
 		}
 	}
 
-	p.processEntryTokLits(tokLits)
+	p.processEntryTokLits(path, tokLits)
 }
 
 func tokenLitString(tok token.Token, lit string) string {
@@ -275,13 +283,22 @@ var spaces = "                                             " +
 	"                                                      " +
 	"                                                      "
 
-func (p *fileProcessor) processEntryTokLits(tokLits []tokLit) {
+func (p *fileProcessor) processEntryTokLits(path []string, tokLits []tokLit) {
 	x := &tokLits[0]
-	if x.tok != token.ILLEGAL {
-		if x.lit != "" {
-			fmt.Printf("%s%s %s\n", spaces[0:x.level], x.tok, x.lit)
-		} else {
-			fmt.Printf("%s%s\n", spaces[0:x.level], x.tok)
+	if x.tok == token.INT {
+		name := pathPartFromTokLits(tokLits)
+		if name != "" {
+			fmt.Printf("%s%v %s = %s %s\n", spaces[0:x.level], path, name, x.tok, x.lit)
 		}
 	}
+}
+
+func pathPartFromTokLits(tokLits []tokLit) string {
+	for i := 1; i < len(tokLits); i++ {
+		tok := tokLits[i].tok
+		if tok == token.IDENT || tok == token.STRING {
+			return tokLits[i].lit
+		}
+	}
+	return ""
 }
