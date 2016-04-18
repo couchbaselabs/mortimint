@@ -78,21 +78,24 @@ type fileProcessor struct {
 }
 
 func (p *fileProcessor) process() error {
-	log.Printf("processFile, dir: %s, fname: %s", p.dir, p.fname)
+	fmt.Fprintf(os.Stderr, "processFile, dir: %s, fname: %s\n", p.dir, p.fname)
 
 	fmeta, exists := FileMetas[p.fname]
 	if !exists {
-		log.Printf("processFile, dir: %s, fname: %s, skipped, no file meta", p.dir, p.fname)
+		fmt.Fprintf(os.Stderr,
+			"processFile, dir: %s, fname: %s, skipped, no file meta\n", p.dir, p.fname)
 		return nil
 	}
 
 	p.fmeta = fmeta
 	if p.fmeta.Skip {
-		log.Printf("processFile, dir: %s, fname: %s, skipped", p.dir, p.fname)
+		fmt.Fprintf(os.Stderr,
+			"processFile, dir: %s, fname: %s, skipped\n", p.dir, p.fname)
 		return nil
 	}
 
-	log.Printf("processFile, dir: %s, fname: %s, opening", p.dir, p.fname)
+	fmt.Fprintf(os.Stderr,
+		"processFile, dir: %s, fname: %s, opening\n", p.dir, p.fname)
 
 	f, err := os.Open(p.dir + "/" + p.fname)
 	if err != nil {
@@ -113,7 +116,7 @@ func (p *fileProcessor) process() error {
 		lineStr := scanner.Text()
 
 		currLine++
-		if currLine <= p.fmeta.HeaderSize {
+		if currLine <= p.fmeta.HeaderSize { // Skip header.
 			currOffset += len(lineStr) + 1
 			continue
 		}
@@ -154,14 +157,14 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 		return
 	}
 
+	lines[0] = firstLine[len(match[0]):] // Strip off PrefixRE's match.
+
 	matchParts := map[string]string{}
 	for i, name := range p.fmeta.PrefixRE.SubexpNames() {
 		if i > 0 {
 			matchParts[name] = match[i]
 		}
 	}
-
-	lines[0] = firstLine[len(match[0]):]
 
 	ts := string(p.fmeta.PrefixRE.ExpandString(nil,
 		"${year}-${month}-${day}T${HH}:${MM}:${SS}-${SSSS}",
@@ -178,13 +181,12 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 		p.buf = p.fmeta.Cleanser(p.buf)
 	}
 
-	// Hack to use go's tokenizer / scanner rather then write our own.
-	var s scanner.Scanner
+	var s scanner.Scanner // Use go's tokenizer to parse entry.
+
 	fset := token.NewFileSet()
+
 	s.Init(fset.AddFile(p.dir+"/"+p.fname, fset.Base(), len(p.buf)),
 		p.buf, nil /* No error handler. */, 0)
-
-	fmt.Println(ts)
 
 	p.processEntryScanner(ts, &s, nil)
 }
