@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	"go/scanner"
 	"go/token"
@@ -229,7 +230,7 @@ func (p *fileProcessor) processEntryScanner(ts string,
 	s *scanner.Scanner, path []string) {
 	level := len(path)
 
-	tokLits := make([]tokLit, 4) // Track some previous tokens.
+	tokLits := make([]tokLit, 4) // Track some previous tokLit's.
 
 	for {
 		_, tok, lit := s.Scan()
@@ -242,7 +243,7 @@ func (p *fileProcessor) processEntryScanner(ts string,
 		}
 
 		// If the token doesn't have a level delta, and is merge'able
-		// with the previous tokLit, then merge.  For example, this
+		// with the previous token, then merge.  For example, this
 		// merges an IDENT that's followed by an IDENT.
 		delta, deltaExists := levelDelta[tok]
 		if !deltaExists && tokLits[0].tok != token.ILLEGAL {
@@ -251,6 +252,7 @@ func (p *fileProcessor) processEntryScanner(ts string,
 				tokLits[0].lit =
 					tokenLitString(tokLits[0].tok, tokLits[0].lit) + " " +
 						tokenLitString(tok, lit)
+
 				continue
 			}
 		}
@@ -264,7 +266,7 @@ func (p *fileProcessor) processEntryScanner(ts string,
 
 		if delta > 0 {
 			pathSub := path
-			pathPart := pathPartFromTokLits(tokLits)
+			pathPart := nameFromTokLits(tokLits)
 			if pathPart != "" {
 				pathSub = append(pathSub, pathPart)
 			}
@@ -286,28 +288,35 @@ func tokenLitString(tok token.Token, lit string) string {
 	return tok.String()
 }
 
-var spaces = "                                             " +
-	"                                                      " +
-	"                                                      " +
-	"                                                      "
-
+// processEntryTokLits treats the 0'th entry in the tokLits as the
+// latest tokLit.
 func (p *fileProcessor) processEntryTokLits(ts string,
 	path []string, tokLits []tokLit) {
 	x := &tokLits[0]
 	if x.tok == token.INT {
-		name := pathPartFromTokLits(tokLits)
+		name := nameFromTokLits(tokLits)
 		if name != "" {
+
+			if len(path) <= 0 {
+				path = strings.Split(name, " ")
+				name = path[len(path)-1]
+				path = path[0:len(path)-1]
+			}
+
 			fmt.Printf("  %s %+v %s = %s %s\n", ts, path, name, x.tok, x.lit)
 		}
 	}
 }
 
-func pathPartFromTokLits(tokLits []tokLit) string {
+// nameFromTokLits returns the last IDENT or STRING from the tokLits,
+// which the caller can use as a name.
+func nameFromTokLits(tokLits []tokLit) string {
 	for i := 1; i < len(tokLits); i++ {
 		tok := tokLits[i].tok
 		if tok == token.IDENT || tok == token.STRING {
 			return tokLits[i].lit
 		}
 	}
+
 	return ""
 }
