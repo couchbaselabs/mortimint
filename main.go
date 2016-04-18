@@ -145,9 +145,9 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 	}
 
 	for _, line := range lines {
-		// fmt.Println(line)
-		_ = fmt.Println
-		_ = line
+		fmt.Println(line)
+		// _ = fmt.Println
+		// _ = line
 	}
 
 	firstLine := lines[0]
@@ -199,7 +199,10 @@ var levelDelta = map[token.Token]int{
 	token.LBRACE: 1,
 	token.RBRACE: -1, // }
 
-	token.CHAR:   0, // When 0, don't change level, and don't merge neighbors.
+	// When value is 0, it means don't change level, and also don't
+	// merge into neighboring tokens.
+
+	token.CHAR:   0,
 	token.INT:    0,
 	token.FLOAT:  0,
 	token.STRING: 0,
