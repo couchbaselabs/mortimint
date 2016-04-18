@@ -63,6 +63,12 @@ var re_ns = regexp.MustCompile(`^\[(?P<module>\w+):(?P<level>\w+),` + ymd + hms 
 
 // ------------------------------------------------------------
 
+var ymd_hms_re = regexp.MustCompile(ymd + hms)
+var ymd_hms_replace = []byte(`"$0"`)
+
+var ident_re = regexp.MustCompile(`[a-f0-9][a-f0-9][a-f0-9][a-f0-9]+-[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]+`)
+var ident_replace = []byte(`"$0"`)
+
 var equals_bar_re = regexp.MustCompile(`=======+([^=]+)=======+`)
 var equals_bar_replace = []byte(`"$1"`)
 
@@ -106,6 +112,10 @@ var FileMetaNS = FileMeta{
 
 		// Convert `ns_1@172.23.105.216` into `"ns_1@172.23.105.216"`
 		s = ns_addr_re.ReplaceAll(s, ns_addr_replace)
+
+		s = ymd_hms_re.ReplaceAll(s, ymd_hms_replace)
+
+		s = ident_re.ReplaceAll(s, ident_replace)
 
 		return s
 	},
