@@ -141,7 +141,7 @@ var FileMetas = map[string]FileMeta{ // Keep alphabetical...
 	"ns_server.fts.log": {
 		HeaderSize: 4,
 		EntryStart: func(line string) bool {
-			return len(line) > 0 && unicode.IsDigit(rune(line[0]))
+			return re_usual.MatchString(line)
 		},
 		PrefixRE: re_usual,
 		Cleanser: func(s []byte) []byte {

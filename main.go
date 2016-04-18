@@ -288,7 +288,7 @@ func (p *fileProcessor) processEntryTokLits(path []string, tokLits []tokLit) {
 	if x.tok == token.INT {
 		name := pathPartFromTokLits(tokLits)
 		if name != "" {
-			fmt.Printf("%s%v %s = %s %s\n", spaces[0:x.level], path, name, x.tok, x.lit)
+			fmt.Printf("  %+v %s = %s %s\n", path, name, x.tok, x.lit)
 		}
 	}
 }
