@@ -49,7 +49,7 @@ func processDir(dir string) error {
 		fname := fileInfo.Name()
 
 		fmeta, exists := FileMetas[fname]
-		if !exists {
+		if !exists || fmeta.Skip {
 			fmt.Fprintf(os.Stderr, "processFile, dir: %s, fname: %s, skipped\n",
 				dirBase, fname)
 			continue
@@ -74,8 +74,18 @@ type fileProcessor struct {
 	fname   string
 	fmeta   FileMeta
 
-	buf []byte // Reusuable buf to reduce garbage.
+	buf []byte // Reusable buf to reduce garbage.
 }
+
+// A tokLit associates a token and a literal string.
+type tokLit struct {
+	tok token.Token
+	lit string
+
+	emitted bool // Marked true when this tokLit has been emitted.
+}
+
+// ------------------------------------------------------------
 
 func (p *fileProcessor) process() error {
 	fmt.Fprintf(os.Stderr,
@@ -194,15 +204,10 @@ var skipToken = map[token.Token]bool{
 	token.SHR: true, // >>
 }
 
-// A tokLit associates a token and a literal string.
-type tokLit struct {
-	tok token.Token
-	lit string
-}
-
 func (p *fileProcessor) processEntryScanner(ts string,
 	s *scanner.Scanner, path []string) {
-	tokLits := make([]tokLit, 4) // Track some previous tokLit's.
+	var tokLits []tokLit
+	var emitted int
 
 	for {
 		_, tok, lit := s.Scan()
@@ -214,66 +219,101 @@ func (p *fileProcessor) processEntryScanner(ts string,
 			continue
 		}
 
-		// If the token doesn't have a level delta, and is merge'able
-		// with the previous token, then merge.  For example, this
-		// merges an IDENT that's followed by an IDENT.
 		delta, deltaExists := levelDelta[tok]
-		if !deltaExists && tokLits[0].tok != token.ILLEGAL {
-			_, prevDeltaExists := levelDelta[tokLits[0].tok]
-			if !prevDeltaExists {
-				tokLits[0].lit =
-					tokenLitString(tokLits[0].tok, tokLits[0].lit) + " " +
-					tokenLitString(tok, lit)
-
-				continue
-			}
-		}
-
-		tokLits[3] = tokLits[2]
-		tokLits[2] = tokLits[1]
-		tokLits[1] = tokLits[0]
-		tokLits[0] = tokLit{tok, lit}
-
-		p.processEntryTokLits(ts, path, tokLits)
-
-		if delta > 0 { // Recurse on sub-level.
+		if delta > 0 {
 			pathSub := path
 			pathPart := nameFromTokLits(tokLits)
 			if pathPart != "" {
 				pathSub = append(pathSub, pathPart)
 			}
 
-			p.processEntryScanner(ts, s, pathSub)
+			emitted = p.emitTokLits(ts, path, tokLits, emitted)
+
+			p.processEntryScanner(ts, s, pathSub) // Recurse on sub-level.
 		} else if delta < 0 {
-			return // Return from sub-level.
+			break // Return from sub-level recursion.
+		} else {
+			// If the token is merge'able with the previous token,
+			// then merge.  For example, we can merge an IDENT that's
+			// followed by an adjacent IDENT.
+			if !deltaExists && len(tokLits) > 0 {
+				tokLitPrev := tokLits[len(tokLits)-1]
+				if !tokLitPrev.emitted {
+					_, prevDeltaExists := levelDelta[tokLitPrev.tok]
+					if !prevDeltaExists {
+						tokLits[len(tokLits)-1].lit =
+							tokenLitString(tokLitPrev.tok, tokLitPrev.lit) + " " +
+								tokenLitString(tok, lit)
+
+						continue
+					}
+				}
+			}
+
+			tokLits = append(tokLits, tokLit{tok, lit, false})
 		}
 	}
 
-	if p.processEntryTokLits(ts, path, tokLits) == "" {
-		// Emit suffix.
-		suffixRev := []string{}
-		for _, tokLit := range tokLits {
-			if tokLit.tok == token.INT ||
-				tokLit.tok == token.STRING ||
-				tokLit.tok == token.ILLEGAL ||
-				levelDelta[tokLit.tok] != 0 {
-				break
-			}
-			s := tokenLitString(tokLit.tok, tokLit.lit)
-			if s != "\n" {
-				suffixRev = append(suffixRev, s)
-			}
+	p.emitTokLits(ts, path, tokLits, emitted)
+}
+
+func (p *fileProcessor) emitTokLits(ts string, path []string,
+	tokLits []tokLit, startAt int) int {
+	var s []string
+
+	for i := startAt; i < len(tokLits); i++ {
+		tokLit := tokLits[i]
+		if tokLit.emitted {
+			continue
 		}
-		suffix := make([]string, len(suffixRev))
-		for i, s := range suffixRev {
-			suffix[len(suffix)-1-i] = s
-		}
-		if len(suffix) > 0 {
-			fmt.Printf("  %s %s/%s %+v suffix = STRING %q\n",
-				ts, p.dirBase, p.fname, path,
-				strings.Trim(strings.Join(suffix, " "), " .:,"))
+		tokLit.emitted = true
+
+		if tokLit.tok == token.INT {
+			strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
+			if len(strs) > 0 {
+				fmt.Printf("  %s %s/%s STRS %+v = STRING %q\n",
+					ts, p.dirBase, p.fname, path, strs)
+			}
+
+			s = nil
+
+			name := nameFromTokLits(tokLits[0:i])
+
+			namePath := path
+			if len(namePath) <= 0 {
+				namePath = strings.Split(name, " ")
+				name = namePath[len(namePath)-1]
+				namePath = namePath[0 : len(namePath)-1]
+			}
+
+			if len(name) > 0 {
+				fmt.Printf("  %s %s/%s NAME %+v %s = %s %s\n",
+					ts, p.dirBase, p.fname, namePath, name, tokLit.tok, tokLit.lit)
+			}
+		} else {
+			s = append(s, tokenLitString(tokLit.tok, tokLit.lit))
 		}
 	}
+
+	strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
+	if len(strs) > 0 {
+		fmt.Printf("  %s %s/%s TAIL %+v = STRING %q\n",
+			ts, p.dirBase, p.fname, path, strs)
+	}
+
+	return len(tokLits)
+}
+
+// nameFromTokLits returns the last IDENT or STRING from the tokLits,
+// which the caller can use as a name.
+func nameFromTokLits(tokLits []tokLit) string {
+	for i := len(tokLits) - 1; i >= 0; i-- {
+		tok := tokLits[i].tok
+		if tok == token.IDENT || tok == token.STRING {
+			return tokLits[i].lit
+		}
+	}
+	return ""
 }
 
 func tokenLitString(tok token.Token, lit string) string {
@@ -281,41 +321,4 @@ func tokenLitString(tok token.Token, lit string) string {
 		return lit
 	}
 	return tok.String()
-}
-
-// processEntryTokLits treats the 0'th entry in the tokLits as the
-// latest tokLit.
-func (p *fileProcessor) processEntryTokLits(ts string,
-	path []string, tokLits []tokLit) string {
-	x := &tokLits[0]
-	if x.tok == token.INT || x.tok == token.STRING {
-		name := nameFromTokLits(tokLits)
-		if name != "" {
-			if len(path) <= 0 {
-				path = strings.Split(name, " ")
-				name = path[len(path)-1]
-				path = path[0 : len(path)-1]
-			}
-
-			fmt.Printf("  %s %s/%s %+v %s = %s %s\n",
-				ts, p.dirBase, p.fname, path, name, x.tok, x.lit)
-
-			return x.lit
-		}
-	}
-
-	return ""
-}
-
-// nameFromTokLits returns the last IDENT or STRING from the tokLits,
-// which the caller can use as a name.
-func nameFromTokLits(tokLits []tokLit) string {
-	for i := 1; i < len(tokLits); i++ {
-		tok := tokLits[i].tok
-		if tok == token.IDENT || tok == token.STRING {
-			return tokLits[i].lit
-		}
-	}
-
-	return ""
 }
