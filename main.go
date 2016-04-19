@@ -278,9 +278,27 @@ func (p *fileProcessor) processEntryScanner(ts string,
 	}
 
 	if p.processEntryTokLits(ts, path, tokLits) == "" {
-		suffix := nameFromTokLits(tokLits, 0)
-		if suffix != "" {
-			fmt.Printf("  %s %+v %s\n", ts, path, suffix)
+		// Emit suffix.
+		suffixRev := []string{}
+		for _, tokLit := range tokLits {
+			if tokLit.tok == token.INT ||
+				tokLit.tok == token.STRING ||
+				tokLit.tok == token.ILLEGAL ||
+				levelDelta[tokLit.tok] != 0 {
+				break
+			}
+			s := tokenLitString(tokLit.tok, tokLit.lit)
+			if s != "\n" {
+				suffixRev = append(suffixRev, s)
+			}
+		}
+		suffix := make([]string, len(suffixRev))
+		for i, s := range suffixRev {
+			suffix[len(suffix) - 1 - i] = s
+		}
+		if len(suffix) > 0 {
+			fmt.Printf("  %s %s %+v suffix = STRING %q\n",
+				ts, p.fname, path, strings.Join(suffix, " "))
 		}
 	}
 }

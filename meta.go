@@ -141,6 +141,9 @@ var FileMetas = map[string]FileMeta{ // Keep alphabetical...
 	"memcached.log": {
 		HeaderSize: 4,
 		PrefixRE:   re_usual,
+		Cleanser: func(s []byte) []byte {
+			return ident_re.ReplaceAll(s, ident_replace)
+		},
 	},
 
 	"ns_server.babysitter.log": FileMetaNS,
