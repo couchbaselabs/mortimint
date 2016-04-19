@@ -29,21 +29,12 @@ var ScannerBufferCapacity = 20 * 1024 * 1024
 // ------------------------------------------------------------
 
 func main() {
-	err := processDirs(os.Args[1:])
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func processDirs(dirs []string) error {
-	for _, dir := range dirs {
+	for _, dir := range os.Args[1:] {
 		err := processDir(dir)
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 	}
-
-	return nil
 }
 
 func processDir(dir string) error {
