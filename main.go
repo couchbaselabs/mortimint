@@ -58,7 +58,7 @@ func processDir(dir string) error {
 			continue
 		}
 
-		fp := &fileProcessor{dir: dir, fname: fname}
+		fp := &fileProcessor{dir: dir, dirBase: path.Base(dir), fname: fname}
 
 		err := fp.process()
 		if err != nil {
@@ -72,31 +72,33 @@ func processDir(dir string) error {
 // ------------------------------------------------------------
 
 type fileProcessor struct {
-	dir   string
-	fname string
-	fmeta FileMeta
-	buf   []byte
+	dir     string
+	dirBase string
+	fname   string
+	fmeta   FileMeta
+
+	buf []byte // Reusuable buf to reduce garbage.
 }
 
 func (p *fileProcessor) process() error {
-	fmt.Fprintf(os.Stderr, "processFile, dir: %s, fname: %s\n", p.dir, p.fname)
+	fmt.Fprintf(os.Stderr, "processFile, dir: %s, fname: %s\n", p.dirBase, p.fname)
 
 	fmeta, exists := FileMetas[p.fname]
 	if !exists {
 		fmt.Fprintf(os.Stderr,
-			"processFile, dir: %s, fname: %s, skipped, no file meta\n", p.dir, p.fname)
+			"processFile, dir: %s, fname: %s, skipped, no file meta\n", p.dirBase, p.fname)
 		return nil
 	}
 
 	p.fmeta = fmeta
 	if p.fmeta.Skip {
 		fmt.Fprintf(os.Stderr,
-			"processFile, dir: %s, fname: %s, skipped\n", p.dir, p.fname)
+			"processFile, dir: %s, fname: %s, skipped\n", p.dirBase, p.fname)
 		return nil
 	}
 
 	fmt.Fprintf(os.Stderr,
-		"processFile, dir: %s, fname: %s, opening\n", p.dir, p.fname)
+		"processFile, dir: %s, fname: %s, opening\n", p.dirBase, p.fname)
 
 	f, err := os.Open(p.dir + "/" + p.fname)
 	if err != nil {
@@ -297,8 +299,8 @@ func (p *fileProcessor) processEntryScanner(ts string,
 			suffix[len(suffix)-1-i] = s
 		}
 		if len(suffix) > 0 {
-			fmt.Printf("  %s %s %+v suffix = STRING %q\n",
-				ts, p.fname, path, strings.Join(suffix, " "))
+			fmt.Printf("  %s %s/%s %+v suffix = STRING %q\n",
+				ts, p.dirBase, p.fname, path, strings.Join(suffix, " "))
 		}
 	}
 }
@@ -325,7 +327,8 @@ func (p *fileProcessor) processEntryTokLits(ts string,
 				path = path[0 : len(path)-1]
 			}
 
-			fmt.Printf("  %s %s %+v %s = %s %s\n", ts, p.fname, path, name, x.tok, x.lit)
+			fmt.Printf("  %s %s/%s %+v %s = %s %s\n",
+				ts, p.dirBase, p.fname, path, name, x.tok, x.lit)
 
 			return x.lit
 		}
