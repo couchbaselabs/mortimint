@@ -66,7 +66,10 @@ var re_ns = regexp.MustCompile(`^\[(?P<module>\w+):(?P<level>\w+),` + ymd + hms 
 var ymd_hms_re = regexp.MustCompile(ymd + hms)
 var ymd_hms_replace = []byte(`"$0"`)
 
-var ident_re = regexp.MustCompile(`[a-f0-9][a-f0-9][a-f0-9][a-f0-9]+-[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]+`)
+var hex = "[a-f0-9]"
+var hex6 = hex+hex+hex+hex+hex+hex
+
+var ident_re = regexp.MustCompile(hex6 + "+-" + hex6 + "+")
 var ident_replace = []byte(`"$0"`)
 
 var equals_bar_re = regexp.MustCompile(`=======+([^=]+)=======+`)

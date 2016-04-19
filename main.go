@@ -307,7 +307,7 @@ func (p *fileProcessor) processEntryTokLits(ts string,
 				path = path[0:len(path)-1]
 			}
 
-			fmt.Printf("  %s %+v %s = %s %s\n", ts, path, name, x.tok, x.lit)
+			fmt.Printf("  %s %s %+v %s = %s %s\n", ts, p.fname, path, name, x.tok, x.lit)
 
 			return x.lit
 		}
