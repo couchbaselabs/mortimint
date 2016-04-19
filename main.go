@@ -223,15 +223,12 @@ var skipToken = map[token.Token]bool{
 
 // A tokLit associates a token and a literal string.
 type tokLit struct {
-	level int
-	tok   token.Token
-	lit   string
+	tok token.Token
+	lit string
 }
 
 func (p *fileProcessor) processEntryScanner(ts string,
 	s *scanner.Scanner, path []string) {
-	level := len(path)
-
 	tokLits := make([]tokLit, 4) // Track some previous tokLit's.
 
 	for {
@@ -262,7 +259,7 @@ func (p *fileProcessor) processEntryScanner(ts string,
 		tokLits[3] = tokLits[2]
 		tokLits[2] = tokLits[1]
 		tokLits[1] = tokLits[0]
-		tokLits[0] = tokLit{level, tok, lit}
+		tokLits[0] = tokLit{tok, lit}
 
 		p.processEntryTokLits(ts, path, tokLits)
 
