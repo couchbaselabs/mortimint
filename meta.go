@@ -63,23 +63,23 @@ var re_ns = regexp.MustCompile(`^\[(?P<module>\w+):(?P<level>\w+),` + ymd + hms 
 
 // ------------------------------------------------------------
 
-var ymd_hms_re = regexp.MustCompile(ymd + hms)
-var ymd_hms_replace = []byte(`"$0"`)
+var stringify_replace = []byte(` "$0" `)
+
+var ymd_hms_re = regexp.MustCompile(" " + ymd + hms + " ")
 
 var hex = "[a-f0-9]"
 var hex6 = hex + hex + hex + hex + hex + hex
 
-var ident_re = regexp.MustCompile(`(\w[a-z0\-_:]+)?` + hex6 + "+-" + hex6 + "+")
-var ident_replace = []byte(`"$0"`)
+var uuid_re = regexp.MustCompile(" " + hex6 + "[a-f0-9-_]+ ")
+
+var addr_re = regexp.MustCompile(`(ns_\d+@)?\d+\.\d+\.\d+.\d+`)
+
+// ------------------------------------------------------------
 
 var equals_bar_re = regexp.MustCompile(`=======+([^=]+)=======+`)
 var equals_bar_replace = []byte(`"$1"`)
 
-var ns_pid_re = regexp.MustCompile(`(<\d+\.\d+\.\d+>)`) // <0.0.0>
-var ns_pid_replace = []byte(`"$1"`)
-
-var ns_addr_re = regexp.MustCompile(`(ns_\d+@\d+\.\d+\.\d+.\d+)`)
-var ns_addr_replace = []byte(`"$1"`)
+var ns_pid_re = regexp.MustCompile(`<\d+\.\d+\.\d+>`) // <0.0.0>
 
 // FileMeta represents metadata about an ns-server log file.
 var FileMetaNS = FileMeta{
@@ -111,16 +111,16 @@ var FileMetaNS = FileMeta{
 		s = equals_bar_re.ReplaceAll(s, equals_bar_replace)
 
 		// Convert `<0.0.0>` into `"<0.0.0>"`
-		s = ns_pid_re.ReplaceAll(s, ns_pid_replace)
+		s = ns_pid_re.ReplaceAll(s, stringify_replace)
 
-		// Convert `ns_1@172.23.105.216` into `"ns_1@172.23.105.216"`
-		s = ns_addr_re.ReplaceAll(s, ns_addr_replace)
+		// Convert `ns_1@172.23.105.216` into ` "ns_1@172.23.105.216" `
+		s = addr_re.ReplaceAll(s, stringify_replace)
 
 		// Stringify dates.
-		s = ymd_hms_re.ReplaceAll(s, ymd_hms_replace)
+		s = ymd_hms_re.ReplaceAll(s, stringify_replace)
 
-		// Stringify idents.
-		s = ident_re.ReplaceAll(s, ident_replace)
+		// Stringify uuids.
+		s = uuid_re.ReplaceAll(s, stringify_replace)
 
 		return s
 	},
@@ -144,7 +144,9 @@ var FileMetas = map[string]FileMeta{ // Keep alphabetical...
 		HeaderSize: 4,
 		PrefixRE:   re_usual,
 		Cleanser: func(s []byte) []byte {
-			return ident_re.ReplaceAll(s, ident_replace)
+			s = addr_re.ReplaceAll(s, stringify_replace)
+			s = uuid_re.ReplaceAll(s, stringify_replace)
+			return s
 		},
 	},
 

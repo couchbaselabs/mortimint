@@ -300,7 +300,8 @@ func (p *fileProcessor) processEntryScanner(ts string,
 		}
 		if len(suffix) > 0 {
 			fmt.Printf("  %s %s/%s %+v suffix = STRING %q\n",
-				ts, p.dirBase, p.fname, path, strings.Join(suffix, " "))
+				ts, p.dirBase, p.fname, path,
+				strings.Trim(strings.Join(suffix, " "), " .:,"))
 		}
 	}
 }
