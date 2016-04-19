@@ -223,7 +223,7 @@ func (p *fileProcessor) processEntryScanner(ts string,
 			if !prevDeltaExists {
 				tokLits[0].lit =
 					tokenLitString(tokLits[0].tok, tokLits[0].lit) + " " +
-						tokenLitString(tok, lit)
+					tokenLitString(tok, lit)
 
 				continue
 			}
@@ -236,16 +236,16 @@ func (p *fileProcessor) processEntryScanner(ts string,
 
 		p.processEntryTokLits(ts, path, tokLits)
 
-		if delta > 0 {
+		if delta > 0 { // Recurse on sub-level.
 			pathSub := path
-			pathPart := nameFromTokLits(tokLits, 1)
+			pathPart := nameFromTokLits(tokLits)
 			if pathPart != "" {
 				pathSub = append(pathSub, pathPart)
 			}
 
-			p.processEntryScanner(ts, s, pathSub) // Recurse.
+			p.processEntryScanner(ts, s, pathSub)
 		} else if delta < 0 {
-			return
+			return // Return from sub-level.
 		}
 	}
 
@@ -280,7 +280,6 @@ func tokenLitString(tok token.Token, lit string) string {
 	if lit != "" {
 		return lit
 	}
-
 	return tok.String()
 }
 
@@ -290,7 +289,7 @@ func (p *fileProcessor) processEntryTokLits(ts string,
 	path []string, tokLits []tokLit) string {
 	x := &tokLits[0]
 	if x.tok == token.INT || x.tok == token.STRING {
-		name := nameFromTokLits(tokLits, 1)
+		name := nameFromTokLits(tokLits)
 		if name != "" {
 			if len(path) <= 0 {
 				path = strings.Split(name, " ")
@@ -310,8 +309,8 @@ func (p *fileProcessor) processEntryTokLits(ts string,
 
 // nameFromTokLits returns the last IDENT or STRING from the tokLits,
 // which the caller can use as a name.
-func nameFromTokLits(tokLits []tokLit, startAt int) string {
-	for i := startAt; i < len(tokLits); i++ {
+func nameFromTokLits(tokLits []tokLit) string {
+	for i := 1; i < len(tokLits); i++ {
 		tok := tokLits[i].tok
 		if tok == token.IDENT || tok == token.STRING {
 			return tokLits[i].lit
