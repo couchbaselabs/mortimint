@@ -43,13 +43,19 @@ func processDir(dir string) error {
 		return err
 	}
 
+	dirBase := path.Base(dir)
+
 	for _, fileInfo := range fileInfos {
 		fname := fileInfo.Name()
-		if !WantSuffixes[path.Ext(fname)] {
+
+		fmeta, exists := FileMetas[fname]
+		if !exists {
+			fmt.Fprintf(os.Stderr, "processFile, dir: %s, fname: %s, skipped\n",
+				dirBase, fname)
 			continue
 		}
 
-		fp := &fileProcessor{dir: dir, dirBase: path.Base(dir), fname: fname}
+		fp := &fileProcessor{dir: dir, dirBase: dirBase, fname: fname, fmeta: fmeta}
 
 		err := fp.process()
 		if err != nil {
@@ -72,24 +78,8 @@ type fileProcessor struct {
 }
 
 func (p *fileProcessor) process() error {
-	fmt.Fprintf(os.Stderr, "processFile, dir: %s, fname: %s\n", p.dirBase, p.fname)
-
-	fmeta, exists := FileMetas[p.fname]
-	if !exists {
-		fmt.Fprintf(os.Stderr,
-			"processFile, dir: %s, fname: %s, skipped, no file meta\n", p.dirBase, p.fname)
-		return nil
-	}
-
-	p.fmeta = fmeta
-	if p.fmeta.Skip {
-		fmt.Fprintf(os.Stderr,
-			"processFile, dir: %s, fname: %s, skipped\n", p.dirBase, p.fname)
-		return nil
-	}
-
 	fmt.Fprintf(os.Stderr,
-		"processFile, dir: %s, fname: %s, opening\n", p.dirBase, p.fname)
+		"processFile, dir: %s, fname: %s\n", p.dirBase, p.fname)
 
 	f, err := os.Open(p.dir + "/" + p.fname)
 	if err != nil {

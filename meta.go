@@ -18,13 +18,6 @@ import (
 	"unicode"
 )
 
-// WantSuffixes lists the file suffixes that we care about.
-var WantSuffixes = map[string]bool{
-	".log": true,
-}
-
-// ------------------------------------------------------------
-
 // FileMeta represents metadata about a file that needs to be parsed.
 type FileMeta struct {
 	Skip       bool                   // When true, ignore this FileMeta.
