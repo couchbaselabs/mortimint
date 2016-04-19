@@ -67,7 +67,7 @@ var ymd_hms_re = regexp.MustCompile(ymd + hms)
 var ymd_hms_replace = []byte(`"$0"`)
 
 var hex = "[a-f0-9]"
-var hex6 = hex+hex+hex+hex+hex+hex
+var hex6 = hex + hex + hex + hex + hex + hex
 
 var ident_re = regexp.MustCompile(`(\w[a-z0\-_:]+)?` + hex6 + "+-" + hex6 + "+")
 var ident_replace = []byte(`"$0"`)
@@ -116,8 +116,10 @@ var FileMetaNS = FileMeta{
 		// Convert `ns_1@172.23.105.216` into `"ns_1@172.23.105.216"`
 		s = ns_addr_re.ReplaceAll(s, ns_addr_replace)
 
+		// Stringify dates.
 		s = ymd_hms_re.ReplaceAll(s, ymd_hms_replace)
 
+		// Stringify idents.
 		s = ident_re.ReplaceAll(s, ident_replace)
 
 		return s

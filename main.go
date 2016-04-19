@@ -294,7 +294,7 @@ func (p *fileProcessor) processEntryScanner(ts string,
 		}
 		suffix := make([]string, len(suffixRev))
 		for i, s := range suffixRev {
-			suffix[len(suffix) - 1 - i] = s
+			suffix[len(suffix)-1-i] = s
 		}
 		if len(suffix) > 0 {
 			fmt.Printf("  %s %s %+v suffix = STRING %q\n",
@@ -322,7 +322,7 @@ func (p *fileProcessor) processEntryTokLits(ts string,
 			if len(path) <= 0 {
 				path = strings.Split(name, " ")
 				name = path[len(path)-1]
-				path = path[0:len(path)-1]
+				path = path[0 : len(path)-1]
 			}
 
 			fmt.Printf("  %s %s %+v %s = %s %s\n", ts, p.fname, path, name, x.tok, x.lit)
