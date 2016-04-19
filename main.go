@@ -141,19 +141,11 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 		return
 	}
 
-	lines[0] = firstLine[len(match[0]):] // Strip off PrefixRE's match.
-
-	matchParts := map[string]string{}
-	for i, name := range p.fmeta.PrefixRE.SubexpNames() {
-		if i > 0 {
-			matchParts[name] = match[i]
-		}
-	}
-
 	ts := string(p.fmeta.PrefixRE.ExpandString(nil,
-		"${year}-${month}-${day}T${HH}:${MM}:${SS}-${SSSS}",
-		firstLine,
+		"${year}-${month}-${day}T${HH}:${MM}:${SS}-${SSSS}", firstLine,
 		p.fmeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))))
+
+	lines[0] = firstLine[len(match[0]):] // Strip off PrefixRE's match.
 
 	p.buf = p.buf[0:0]
 	for _, line := range lines {
@@ -169,10 +161,10 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 
 	fset := token.NewFileSet()
 
-	s.Init(fset.AddFile(p.dir+"/"+p.fname, fset.Base(), len(p.buf)),
-		p.buf, nil /* No error handler. */, 0)
+	s.Init(fset.AddFile(p.dir+"/"+p.fname, fset.Base(),
+		len(p.buf)), p.buf, nil /* No error handler. */, 0)
 
-	p.processEntryScanner(ts, &s, nil)
+	p.processEntryScanner(ts, &s, make([]string, 0, 20))
 }
 
 var levelDelta = map[token.Token]int{
