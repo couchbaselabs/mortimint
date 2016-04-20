@@ -6,11 +6,11 @@ For example...
 
     $ cd myTempDir
     
-    $ curl ... # Download several cbcollect-info zip files.
+    $ curl ...                            # Download cbcollect-info zip's.
     
-    $ unzip *.zip # Unzip them
+    $ unzip *.zip                         # Unzip them.
     
-    $ ./mortimint * | grep curr_items
+    $ ./mortimint * | grep curr_items     # Grep away.
 
 The output should have date/time-stamps, which you can use more of
 your favorite cmd-line tools to correlate.
