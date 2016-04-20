@@ -12,9 +12,9 @@ Usage example...
 
     $ cd myTempDir
     
-    $ curl ...                            # Download cbcollect-info zip's.
+    $ curl ...                          # Download cbcollect-info zip's.
     
-    $ unzip *.zip                         # Unzip them.
+    $ unzip *.zip                       # Unzip them.
     
     $ mortimint * | grep curr_items     # Grep away.
 
