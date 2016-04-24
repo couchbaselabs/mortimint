@@ -67,7 +67,7 @@ The "path" that mortimint emits in the brackets ('[' and ']') is the
 rough path down the parse tree to reach the leaf name=value
 information.
 
-For example, you can grep the output for " 2016" and for "INT" to
+For example, you can grep the output for "  2016" and for "INT" to
 filter for numeric data.
 
 NOTE: output format might change!  And, cmd-line params/flags might
