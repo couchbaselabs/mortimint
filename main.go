@@ -51,11 +51,15 @@ func parseArgs(args []string) *Run {
 
 	flagSet := flag.NewFlagSet(args[0], flag.ExitOnError)
 	flagSet.StringVar(&run.DictPath, "dictPath", "",
-		"optional, path to output JSON dictionary file")
+		"optional, path to output JSON dictionary file.")
 	flagSet.BoolVar(&run.EmitOrig, "emitOrig", false,
-		"when true, the original log lines are also emitted to stdout")
+		"when true, the original log lines are also emitted to stdout.")
 	flagSet.StringVar(&run.EmitParts, "emitParts", "NAME",
-		"optional, comma-separated list of parts (NAME, STRS, TAIL) to emit")
+		"optional, comma-separated list of parts to emit; valid values:\n"+
+			"          NAME - emit name=value pairs;\n"+
+			"          STRS - emit strings between name=value pairs;\n"+
+            "          TAIL - emit string after last name=value pair;\n"+
+            "       ")
 	flagSet.IntVar(&run.Verbose, "v", 0,
 		"optional, use a higher number for more verbose stderr logging")
 	flagSet.Parse(args[1:])
