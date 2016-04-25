@@ -50,8 +50,7 @@ func processDir(dir string) error {
 
 		fmeta, exists := FileMetas[fname]
 		if !exists || fmeta.Skip {
-			fmt.Fprintf(os.Stderr, "processFile, dir: %s, fname: %s, skipped\n",
-				dirBase, fname)
+			fmt.Fprintf(os.Stderr, "processing %s/%s, skipped\n", dirBase, fname)
 			continue
 		}
 
@@ -89,7 +88,7 @@ type tokLit struct {
 
 func (p *fileProcessor) process() error {
 	fmt.Fprintf(os.Stderr,
-		"processFile, dir: %s, fname: %s\n", p.dirBase, p.fname)
+		"processing %s/%s\n", p.dirBase, p.fname)
 
 	f, err := os.Open(p.dir + "/" + p.fname)
 	if err != nil {
