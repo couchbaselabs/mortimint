@@ -35,6 +35,7 @@ func main() {
 
 type Run struct {
 	DictPath string
+	EmitOrig bool
 	Verbose  int
 	Dirs     []string
 }
@@ -44,6 +45,8 @@ func parseArgs(args []string) *Run {
 	flagSet := flag.NewFlagSet(args[0], flag.ExitOnError)
 	flagSet.StringVar(&run.DictPath, "dictPath", "",
 		"optional, path to output JSON dictionary file")
+	flagSet.BoolVar(&run.EmitOrig, "emitOrig", false,
+		"when true, the original log lines are also emitted to stdout")
 	flagSet.IntVar(&run.Verbose, "v", 0,
 		"optional, use a higher number for more verbose stderr logging")
 	flagSet.Parse(args[1:])
@@ -79,7 +82,7 @@ func (run *Run) processDir(dir string) error {
 			continue
 		}
 
-		fp := &fileProcessor{dir: dir, dirBase: dirBase, fname: fname, fmeta: fmeta}
+		fp := &fileProcessor{run: run, dir: dir, dirBase: dirBase, fname: fname, fmeta: fmeta}
 
 		err := fp.process()
 		if err != nil {
@@ -93,6 +96,7 @@ func (run *Run) processDir(dir string) error {
 // ------------------------------------------------------------
 
 type fileProcessor struct {
+	run     *Run
 	dir     string
 	dirBase string
 	fname   string
@@ -162,10 +166,10 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 		return
 	}
 
-	for _, line := range lines {
-		fmt.Println(line)
-		// _ = fmt.Println
-		// _ = line
+	if p.run.EmitOrig {
+		for _, line := range lines {
+			fmt.Println(line)
+		}
 	}
 
 	firstLine := lines[0]
