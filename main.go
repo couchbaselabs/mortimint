@@ -35,23 +35,37 @@ func main() {
 
 // Run is the main data struct that describes a processing run.
 type Run struct {
-	DictPath string   // Path to optional dictionary file to output.
-	EmitOrig bool     // When true, also emit original log entries to stdout.
-	Verbose  int      // More verbosity when number is greater.
-	Dirs     []string // Directories to process.
+	DictPath  string   // Path to optional dictionary file to output.
+	EmitOrig  bool     // When true, also emit original log entries to stdout.
+	EmitParts string   // Comma-separated list of parts of data to emit (NAME, STRS, TAIL).
+	Verbose   int      // More verbosity when number is greater.
+	Dirs      []string // Directories to process.
+
+	dict map[string]*DictEntry
+
+	emitParts map[string]bool
 }
 
 func parseArgs(args []string) *Run {
-	run := &Run{}
+	run := &Run{dict: map[string]*DictEntry{}, emitParts: map[string]bool{}}
+
 	flagSet := flag.NewFlagSet(args[0], flag.ExitOnError)
 	flagSet.StringVar(&run.DictPath, "dictPath", "",
 		"optional, path to output JSON dictionary file")
 	flagSet.BoolVar(&run.EmitOrig, "emitOrig", false,
 		"when true, the original log lines are also emitted to stdout")
+	flagSet.StringVar(&run.EmitParts, "emitParts", "NAME",
+		"optional, comma-separated list of parts (NAME, STRS, TAIL) to emit")
 	flagSet.IntVar(&run.Verbose, "v", 0,
 		"optional, use a higher number for more verbose stderr logging")
 	flagSet.Parse(args[1:])
+
 	run.Dirs = flagSet.Args()
+
+	for _, part := range strings.Split(run.EmitParts, ",") {
+		run.emitParts[part] = true
+	}
+
 	return run
 }
 
@@ -92,6 +106,33 @@ func (run *Run) processDir(dir string) error {
 	}
 
 	return nil
+}
+
+// ------------------------------------------------------------
+
+type DictEntry struct {
+	Kind string         // Valid values are "INT", "STRING".
+	Seen int            // Count of number of times this entry was seen.
+	Vals map[string]int // When kind is "STRING", sub-dictionary of value counts.
+}
+
+func (run *Run) addDictEntry(kind, name, val string) {
+	d := run.dict[name]
+	if d == nil {
+		d = &DictEntry{Kind: kind}
+
+		run.dict[name] = d
+
+		if kind == "STRING" {
+			d.Vals = map[string]int{}
+		}
+	}
+
+	d.Seen++
+
+	if d.Vals != nil {
+		d.Vals[val]++
+	}
 }
 
 // ------------------------------------------------------------
@@ -221,6 +262,10 @@ var levelDelta = map[token.Token]int{
 	token.FLOAT:  0,
 	token.STRING: 0,
 
+	token.ADD:       0, // +
+	token.SUB:       0, // -
+	token.MUL:       0, // *
+	token.QUO:       0, // /
 	token.COLON:     0,
 	token.COMMA:     0,
 	token.PERIOD:    0,
@@ -300,7 +345,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 
 		if tokLit.tok == token.INT {
 			strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-			if len(strs) > 0 {
+			if p.run.emitParts["STRS"] && len(strs) > 0 {
 				fmt.Printf("  %s %s/%s:%d:%d STRS %+v = STRING %q\n",
 					ts, p.dirBase, p.fname, startOffset, startLine, path, strs)
 			}
@@ -317,9 +362,13 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 			}
 
 			if len(name) > 0 {
-				fmt.Printf("  %s %s/%s:%d:%d NAME %+v %s = %s %s\n",
-					ts, p.dirBase, p.fname, startOffset, startLine,
-					namePath, name, tokLit.tok, tokLit.lit)
+				p.run.addDictEntry(tokLit.tok.String(), name, tokLit.lit)
+
+				if p.run.emitParts["NAME"] {
+					fmt.Printf("  %s %s/%s:%d:%d NAME %+v %s = %s %s\n",
+						ts, p.dirBase, p.fname, startOffset, startLine,
+						namePath, name, tokLit.tok, tokLit.lit)
+				}
 			}
 		} else {
 			s = append(s, tokenLitString(tokLit.tok, tokLit.lit))
@@ -327,7 +376,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 	}
 
 	strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-	if len(strs) > 0 {
+	if p.run.emitParts["TAIL"] && len(strs) > 0 {
 		fmt.Printf("  %s %s/%s:%d:%d TAIL %+v = STRING %q\n",
 			ts, p.dirBase, p.fname, startOffset, startLine, path, strs)
 	}
