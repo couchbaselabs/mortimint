@@ -54,12 +54,16 @@ As an example, if the cbcollect-info log entries looked like...
 
 Then, mortimint will emit to stdout roughly something like...
 
-      2016-0425T01:01:11.111 cbcollect-172.22.12.10/ns_server_diag.log [latest terms] foo = INT 11
-      2016-0425T01:01:11.111 cbcollect-172.22.12.10/ns_server_diag.log [latest terms bar] baz = INT 222
-      2016-04-25T01:01:22.2222 cbcollect-172.22.12.10/ns_server_diag.log [config for] vb = INT 22
-      2016-04-25T01:01:22.2222 cbcollect-172.22.12.10/ns_server_diag.log [was] state = STRING "active"
-      2016-04-25T01:01:22.2222 cbcollect-172.22.12.10/ns_server_diag.log [was] rsets = INT 44
-      2016-04-25T01:01:22.2222 cbcollect-172.22.12.10/ns_server_diag.log [was flog] count = INT 555
+      2016-0425T01:01:11.111 cbcollect-172.22.12.10/ns_server_diag.log:100:100 [latest terms] foo = INT 11
+      2016-0425T01:01:11.111 cbcollect-172.22.12.10/ns_server_diag.log:100:100 [latest terms bar] baz = INT 222
+      2016-04-25T01:01:22.2222 cbcollect-172.22.12.10/ns_server_diag.log:140:103 [config for] vb = INT 22
+      2016-04-25T01:01:22.2222 cbcollect-172.22.12.10/ns_server_diag.log:140:103 [was] state = STRING "active"
+      2016-04-25T01:01:22.2222 cbcollect-172.22.12.10/ns_server_diag.log:140:103 [was] rsets = INT 44
+      2016-04-25T01:01:22.2222 cbcollect-172.22.12.10/ns_server_diag.log:140:103 [was flog] count = INT 555
+
+The part after the timestamp is
+"$DIR/$FILENAME:$BYTE_OFFSET:$LINE_NUM", where BYTE_OFFSET is the
+offset into file of the byte that starts the log entry.
 
 The "path" that mortimint emits in the brackets ('[' and ']') is the
 rough path down the parse tree to reach the specific, leaf name=value

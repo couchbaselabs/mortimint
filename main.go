@@ -116,8 +116,7 @@ type tokLit struct {
 // ------------------------------------------------------------
 
 func (p *fileProcessor) process() error {
-	fmt.Fprintf(os.Stderr,
-		"processing %s/%s\n", p.dirBase, p.fname)
+	fmt.Fprintf(os.Stderr, "processing %s/%s\n", p.dirBase, p.fname)
 
 	f, err := os.Open(p.dir + "/" + p.fname)
 	if err != nil {
@@ -130,6 +129,7 @@ func (p *fileProcessor) process() error {
 
 	var currOffset int
 	var currLine int
+
 	var entryStartOffset int
 	var entryStartLine int
 	var entryLines []string
@@ -143,8 +143,7 @@ func (p *fileProcessor) process() error {
 			continue
 		}
 
-		if p.fmeta.EntryStart == nil ||
-			p.fmeta.EntryStart(lineStr) {
+		if p.fmeta.EntryStart == nil || p.fmeta.EntryStart(lineStr) {
 			p.processEntry(entryStartOffset, entryStartLine, entryLines)
 
 			entryStartOffset = currOffset
@@ -202,7 +201,7 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 	s.Init(fset.AddFile(p.dir+"/"+p.fname, fset.Base(),
 		len(p.buf)), p.buf, nil /* No error handler. */, 0)
 
-	p.processEntryScanner(ts, &s, make([]string, 0, 20))
+	p.processEntryScanner(startOffset, startLine, ts, &s, make([]string, 0, 20))
 }
 
 var levelDelta = map[token.Token]int{
@@ -232,8 +231,8 @@ var skipToken = map[token.Token]bool{
 	token.SHR: true, // >>
 }
 
-func (p *fileProcessor) processEntryScanner(ts string,
-	s *scanner.Scanner, path []string) {
+func (p *fileProcessor) processEntryScanner(startOffset, startLine int,
+	ts string, s *scanner.Scanner, path []string) {
 	var tokLits []tokLit
 	var emitted int
 
@@ -255,9 +254,11 @@ func (p *fileProcessor) processEntryScanner(ts string,
 				pathSub = append(pathSub, pathPart)
 			}
 
-			emitted = p.emitTokLits(ts, path, tokLits, emitted)
+			emitted = p.emitTokLits(startOffset, startLine, ts, path,
+				tokLits, emitted)
 
-			p.processEntryScanner(ts, s, pathSub) // Recurse on sub-level.
+			// Recurse on sub-level.
+			p.processEntryScanner(startOffset, startLine, ts, s, pathSub)
 		} else if delta < 0 {
 			break // Return from sub-level recursion.
 		} else {
@@ -282,11 +283,11 @@ func (p *fileProcessor) processEntryScanner(ts string,
 		}
 	}
 
-	p.emitTokLits(ts, path, tokLits, emitted)
+	p.emitTokLits(startOffset, startLine, ts, path, tokLits, emitted)
 }
 
-func (p *fileProcessor) emitTokLits(ts string, path []string,
-	tokLits []tokLit, startAt int) int {
+func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
+	path []string, tokLits []tokLit, startAt int) int {
 	var s []string
 
 	for i := startAt; i < len(tokLits); i++ {
@@ -299,8 +300,8 @@ func (p *fileProcessor) emitTokLits(ts string, path []string,
 		if tokLit.tok == token.INT {
 			strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
 			if len(strs) > 0 {
-				fmt.Printf("  %s %s/%s STRS %+v = STRING %q\n",
-					ts, p.dirBase, p.fname, path, strs)
+				fmt.Printf("  %s %s/%s:%d:%d STRS %+v = STRING %q\n",
+					ts, p.dirBase, p.fname, startOffset, startLine, path, strs)
 			}
 
 			s = nil
@@ -315,8 +316,9 @@ func (p *fileProcessor) emitTokLits(ts string, path []string,
 			}
 
 			if len(name) > 0 {
-				fmt.Printf("  %s %s/%s NAME %+v %s = %s %s\n",
-					ts, p.dirBase, p.fname, namePath, name, tokLit.tok, tokLit.lit)
+				fmt.Printf("  %s %s/%s:%d:%d NAME %+v %s = %s %s\n",
+					ts, p.dirBase, p.fname, startOffset, startLine,
+					namePath, name, tokLit.tok, tokLit.lit)
 			}
 		} else {
 			s = append(s, tokenLitString(tokLit.tok, tokLit.lit))
@@ -325,8 +327,8 @@ func (p *fileProcessor) emitTokLits(ts string, path []string,
 
 	strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
 	if len(strs) > 0 {
-		fmt.Printf("  %s %s/%s TAIL %+v = STRING %q\n",
-			ts, p.dirBase, p.fname, path, strs)
+		fmt.Printf("  %s %s/%s:%d:%d TAIL %+v = STRING %q\n",
+			ts, p.dirBase, p.fname, startOffset, startLine, path, strs)
 	}
 
 	return len(tokLits)
