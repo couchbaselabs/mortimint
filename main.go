@@ -27,35 +27,42 @@ import (
 
 var ScannerBufferCapacity = 20 * 1024 * 1024
 
-type Opts struct {
-	DictPath string
-	Verbose  int
-}
-
-func parseOpts(opts *Opts, args []string) []string {
-	flagSet := flag.NewFlagSet(args[0], flag.ExitOnError)
-	flagSet.StringVar(&opts.DictPath, "dictPath", "",
-		"optional, path to output JSON dictionary file")
-	flagSet.IntVar(&opts.Verbose, "v", 0,
-		"optional, use a higher number for more verbose stderr logging")
-	flagSet.Parse(args[1:])
-	return flagSet.Args()
+func main() {
+	parseArgs(os.Args).process()
 }
 
 // ------------------------------------------------------------
 
-func main() {
-	opts := &Opts{}
-	dirs := parseOpts(opts, os.Args)
-	for _, dir := range dirs {
-		err := processDir(opts, dir)
+type Run struct {
+	DictPath string
+	Verbose  int
+	Dirs     []string
+}
+
+func parseArgs(args []string) *Run {
+	run := &Run{}
+	flagSet := flag.NewFlagSet(args[0], flag.ExitOnError)
+	flagSet.StringVar(&run.DictPath, "dictPath", "",
+		"optional, path to output JSON dictionary file")
+	flagSet.IntVar(&run.Verbose, "v", 0,
+		"optional, use a higher number for more verbose stderr logging")
+	flagSet.Parse(args[1:])
+	run.Dirs = flagSet.Args()
+	return run
+}
+
+// ------------------------------------------------------------
+
+func (run *Run) process() {
+	for _, dir := range run.Dirs {
+		err := run.processDir(dir)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 }
 
-func processDir(opts *Opts, dir string) error {
+func (run *Run) processDir(dir string) error {
 	fileInfos, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return err
