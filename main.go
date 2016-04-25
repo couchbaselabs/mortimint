@@ -33,11 +33,12 @@ func main() {
 
 // ------------------------------------------------------------
 
+// Run is the main data struct that describes a processing run.
 type Run struct {
-	DictPath string
-	EmitOrig bool
-	Verbose  int
-	Dirs     []string
+	DictPath string   // Path to optional dictionary file to output.
+	EmitOrig bool     // When true, also emit original log entries to stdout.
+	Verbose  int      // More verbosity when number is greater.
+	Dirs     []string // Directories to process.
 }
 
 func parseArgs(args []string) *Run {
