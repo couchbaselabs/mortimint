@@ -166,7 +166,7 @@ func (run *Run) AddDictEntry(kind string, name, val string) string {
 
 		run.dict[name] = d
 
-		if kind == "STRING" {
+		if kind == "STRING" && name != "median" {
 			d.Vals = map[string]int{}
 		}
 	}
@@ -460,7 +460,8 @@ func validateName(name string) string {
 	if strings.IndexAny(name, "<>/ ") >= 0 {
 		return ""
 	}
-	if name == "true" || name == "false" || name == "pid" || name == "uuid" ||
+	if name == "true" || name == "false" ||
+		name == "ok" || name == "pid" || name == "uuid" ||
 		strings.HasPrefix(name, "0x") || int_re.MatchString(name) {
 		return ""
 	}
