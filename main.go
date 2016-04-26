@@ -152,19 +152,21 @@ func (run *Run) processDir(dir string) error {
 }
 
 func (run *Run) emit(ts, dirBase, fname string, startOffset, startLine int,
-	kind string, namePath []string, name, valType, val string, valQuoted bool) {
-	if name != "" {
-		name = name + " "
-	}
+	partKind string, namePath []string, name, valType, val string, valQuoted bool) {
+	if run.emitParts[partKind] && len(val) > 0 {
+		if name != "" {
+			name = name + " "
+		}
 
-	if valQuoted {
-		fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %q\n",
-			ts, dirBase, fname, startOffset, startLine,
-			kind, namePath, name, valType, val)
-	} else {
-		fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %s\n",
-			ts, dirBase, fname, startOffset, startLine,
-			kind, namePath, name, valType, val)
+		if valQuoted {
+			fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %q\n",
+				ts, dirBase, fname, startOffset, startLine,
+				partKind, namePath, name, valType, val)
+		} else {
+			fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %s\n",
+				ts, dirBase, fname, startOffset, startLine,
+				partKind, namePath, name, valType, val)
+		}
 	}
 }
 
@@ -182,7 +184,7 @@ type DictEntry struct {
 	TotInt int64 `json:"TotInt,omitempty"`
 }
 
-func (run *Run) AddDictEntry(kind string, name, val string) string {
+func (run *Run) AddDictEntry(kind string, name, val string) {
 	d := run.dict[name]
 	if d == nil {
 		d = &DictEntry{Kind: kind, MinInt: math.MaxInt64, MaxInt: math.MinInt64}
@@ -212,8 +214,6 @@ func (run *Run) AddDictEntry(kind string, name, val string) string {
 			d.TotInt += v
 		}
 	}
-
-	return name
 }
 
 // ------------------------------------------------------------
@@ -428,10 +428,8 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 		tokStr := tokLit.tok.String()
 		if p.run.emitTypes[tokStr] {
 			strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-			if p.run.emitParts["STRS"] && len(strs) > 0 {
-				p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
-					"STRS", path, "", "STRING", strs, true)
-			}
+			p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
+				"STRS", path, "", "STRING", strs, true)
 
 			s = nil
 
@@ -444,12 +442,11 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 					namePath = namePath[0 : len(namePath)-1]
 				}
 
-				if len(name) > 0 {
-					name = p.run.AddDictEntry(tokStr, name, tokLit.lit)
-					if name != "" && p.run.emitParts["NAME"] {
-						p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
-							"NAME", namePath, name, tokStr, tokLit.lit, false)
-					}
+				if name != "" {
+					p.run.AddDictEntry(tokStr, name, tokLit.lit)
+
+					p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
+						"NAME", namePath, name, tokStr, tokLit.lit, false)
 				}
 			}
 		} else {
@@ -458,10 +455,8 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 	}
 
 	strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-	if p.run.emitParts["TAIL"] && len(strs) > 0 {
-		p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
-			"TAIL", path, "", "STRING", strs, true)
-	}
+	p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
+		"TAIL", path, "", "STRING", strs, true)
 
 	return len(tokLits)
 }
