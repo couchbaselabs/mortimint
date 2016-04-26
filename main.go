@@ -41,16 +41,22 @@ type Run struct {
 	DictPath  string   // Path to optional dictionary file to output.
 	EmitOrig  bool     // When true, also emit original log entries to stdout.
 	EmitParts string   // Comma-separated list of parts of data to emit (NAME, STRS, TAIL).
+	EmitTypes string   // Comma-separated list of value types to emit (INT, STRING),
 	Verbose   int      // More verbosity when number is greater.
 	Dirs      []string // Directories to process.
 
 	emitParts map[string]bool // True when that part should be emitted.
+	emitTypes map[string]bool // True when that value type should be emitted.
 
 	dict map[string]*DictEntry
 }
 
 func parseArgs(args []string) *Run {
-	run := &Run{emitParts: map[string]bool{}, dict: map[string]*DictEntry{}}
+	run := &Run{
+		emitParts: map[string]bool{},
+		emitTypes: map[string]bool{},
+		dict:      map[string]*DictEntry{},
+	}
 
 	flagSet := flag.NewFlagSet(args[0], flag.ExitOnError)
 	flagSet.StringVar(&run.DictPath, "dictPath", "",
@@ -63,6 +69,11 @@ func parseArgs(args []string) *Run {
 			"          STRS - emit strings between name=value pairs;\n"+
 			"          TAIL - emit string after last name=value pair;\n"+
 			"       ")
+	flagSet.StringVar(&run.EmitTypes, "emitTypes", "INT",
+		"optional, comma-separated list of value types to emit; valid values:\n"+
+			"          INT    - emit integer values;\n"+
+			"          STRING - emit string values;\n"+
+			"       ")
 	flagSet.IntVar(&run.Verbose, "v", 0,
 		"optional, use a higher number for more verbose stderr logging")
 	flagSet.Parse(args[1:])
@@ -71,6 +82,10 @@ func parseArgs(args []string) *Run {
 
 	for _, part := range strings.Split(run.EmitParts, ",") {
 		run.emitParts[part] = true
+	}
+
+	for _, typE := range strings.Split(run.EmitTypes, ",") {
+		run.emitTypes[typE] = true
 	}
 
 	return run
@@ -386,7 +401,8 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 		}
 		tokLit.emitted = true
 
-		if tokLit.tok == token.INT {
+		tokStr := tokLit.tok.String()
+		if p.run.emitTypes[tokStr] {
 			strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
 			if p.run.emitParts["STRS"] && len(strs) > 0 {
 				fmt.Printf("  %s %s/%s:%d:%d STRS %+v = STRING %q\n",
@@ -405,7 +421,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 				}
 
 				if len(name) > 0 {
-					name = p.run.AddDictEntry(tokLit.tok.String(), name, tokLit.lit)
+					name = p.run.AddDictEntry(tokStr, name, tokLit.lit)
 					if name != "" && p.run.emitParts["NAME"] {
 						fmt.Printf("  %s %s/%s:%d:%d NAME %+v %s = %s %s\n",
 							ts, p.dirBase, p.fname, startOffset, startLine,
