@@ -151,6 +151,23 @@ func (run *Run) processDir(dir string) error {
 	return nil
 }
 
+func (run *Run) emit(ts, dirBase, fname string, startOffset, startLine int,
+	kind string, namePath []string, name, valType, val string, valQuoted bool) {
+	if name != "" {
+		name = name + " "
+	}
+
+	if valQuoted {
+		fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %q\n",
+			ts, dirBase, fname, startOffset, startLine,
+			kind, namePath, name, valType, val)
+	} else {
+		fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %s\n",
+			ts, dirBase, fname, startOffset, startLine,
+			kind, namePath, name, valType, val)
+	}
+}
+
 // ------------------------------------------------------------
 
 type DictEntry struct {
@@ -202,7 +219,8 @@ func (run *Run) AddDictEntry(kind string, name, val string) string {
 // ------------------------------------------------------------
 
 type fileProcessor struct {
-	run     *Run
+	run *Run
+
 	dir     string
 	dirBase string
 	fname   string
@@ -411,8 +429,8 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 		if p.run.emitTypes[tokStr] {
 			strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
 			if p.run.emitParts["STRS"] && len(strs) > 0 {
-				fmt.Printf("  %s %s/%s:%d:%d STRS %+v = STRING %q\n",
-					ts, p.dirBase, p.fname, startOffset, startLine, path, strs)
+				p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
+					"STRS", path, "", "STRING", strs, true)
 			}
 
 			s = nil
@@ -429,9 +447,8 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 				if len(name) > 0 {
 					name = p.run.AddDictEntry(tokStr, name, tokLit.lit)
 					if name != "" && p.run.emitParts["NAME"] {
-						fmt.Printf("  %s %s/%s:%d:%d NAME %+v %s = %s %s\n",
-							ts, p.dirBase, p.fname, startOffset, startLine,
-							namePath, name, tokLit.tok, tokLit.lit)
+						p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
+							"NAME", namePath, name, tokStr, tokLit.lit, false)
 					}
 				}
 			}
@@ -442,8 +459,8 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 
 	strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
 	if p.run.emitParts["TAIL"] && len(strs) > 0 {
-		fmt.Printf("  %s %s/%s:%d:%d TAIL %+v = STRING %q\n",
-			ts, p.dirBase, p.fname, startOffset, startLine, path, strs)
+		p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
+			"TAIL", path, "", "STRING", strs, true)
 	}
 
 	return len(tokLits)
