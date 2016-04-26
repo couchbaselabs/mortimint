@@ -143,7 +143,14 @@ func (run *Run) processDir(dir string) error {
 			continue
 		}
 
-		fp := &fileProcessor{run: run, dir: dir, dirBase: dirBase, fname: fname, fmeta: fmeta}
+		fp := &fileProcessor{
+			run:     run,
+			dir:     dir,
+			dirBase: dirBase,
+			fname:   fname,
+			fmeta:   fmeta,
+			dict:    Dict{},
+		}
 
 		err := fp.process()
 		if err != nil {
@@ -153,6 +160,8 @@ func (run *Run) processDir(dir string) error {
 
 	return nil
 }
+
+// ------------------------------------------------------------
 
 func (run *Run) emit(ts, dirBase, fname string, startOffset, startLine int,
 	partKind string, namePath []string, name, valType, val string, valQuoted bool) {
@@ -175,6 +184,8 @@ func (run *Run) emit(ts, dirBase, fname string, startOffset, startLine int,
 
 // ------------------------------------------------------------
 
+type Dict map[string]*DictEntry
+
 type DictEntry struct {
 	Kind string // For exmaple, "INT" or "STRING".
 	Seen int    // Count of number of times this entry was seen.
@@ -186,8 +197,6 @@ type DictEntry struct {
 	MaxInt int64 `json:"MaxInt,omitempty"`
 	TotInt int64 `json:"TotInt,omitempty"`
 }
-
-type Dict map[string]*DictEntry
 
 func (dict Dict) AddDictEntry(kind string, name, val string) {
 	d := dict[name]
@@ -226,11 +235,13 @@ func (src Dict) AddTo(dst Dict) {
 	for name, srcDE := range src {
 		dstDE := dst[name]
 		if dstDE == nil {
-			dstDE = &DictEntry{}
+			dstDE = &DictEntry{MinInt: math.MaxInt64, MaxInt: math.MinInt64}
 			dst[name] = dstDE
 		}
+
 		dstDE.Kind = srcDE.Kind
 		dstDE.Seen += srcDE.Seen
+
 		if srcDE.Vals != nil {
 			if dstDE.Vals == nil {
 				dstDE.Vals = map[string]int{}
@@ -239,10 +250,11 @@ func (src Dict) AddTo(dst Dict) {
 				dstDE.Vals[v] += vi
 			}
 		}
-		if dstDE.MinInt < srcDE.MinInt {
+
+		if dstDE.MinInt > srcDE.MinInt {
 			dstDE.MinInt = srcDE.MinInt
 		}
-		if dstDE.MaxInt > srcDE.MaxInt {
+		if dstDE.MaxInt < srcDE.MaxInt {
 			dstDE.MaxInt = srcDE.MaxInt
 		}
 		dstDE.TotInt += srcDE.TotInt
@@ -258,6 +270,8 @@ type fileProcessor struct {
 	dirBase string
 	fname   string
 	fmeta   FileMeta
+
+	dict Dict
 
 	buf []byte // Reusable buf to reduce garbage.
 }
@@ -313,6 +327,8 @@ func (p *fileProcessor) process() error {
 	}
 
 	p.processEntry(entryStartOffset, entryStartLine, entryLines)
+
+	p.dict.AddTo(p.run.dict)
 
 	return scanner.Err()
 }
@@ -476,7 +492,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 				}
 
 				if name != "" {
-					p.run.dict.AddDictEntry(tokStr, name, tokLit.lit)
+					p.dict.AddDictEntry(tokStr, name, tokLit.lit)
 					p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
 						"NAME", namePath, name, tokStr, tokLit.lit, false)
 				}
