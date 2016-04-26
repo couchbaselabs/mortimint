@@ -444,7 +444,6 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 
 				if name != "" {
 					p.run.AddDictEntry(tokStr, name, tokLit.lit)
-
 					p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
 						"NAME", namePath, name, tokStr, tokLit.lit, false)
 				}
@@ -473,6 +472,8 @@ func nameFromTokLits(tokLits []tokLit) string {
 	return ""
 }
 
+// validateName converts a name into a validated name, using heuristic
+// rules; otherwise, returns "" for an invalid name.
 func validateName(name string) string {
 	name = strings.Trim(name, " \t\n\"")
 	if strings.IndexAny(name, "<>/ ") >= 0 {
