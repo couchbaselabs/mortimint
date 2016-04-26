@@ -67,6 +67,8 @@ var uuid_re = regexp.MustCompile(" " + hex6 + "[a-f0-9-_]+ ")
 
 var addr_re = regexp.MustCompile(`(ns_\d+@)?\d+\.\d+\.\d+.\d+`)
 
+var int_re = regexp.MustCompile(`\d+`)
+
 // ------------------------------------------------------------
 
 var equals_bar_re = regexp.MustCompile(`=======+([^=]+)=======+`)

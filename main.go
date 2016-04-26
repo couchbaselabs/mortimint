@@ -460,6 +460,10 @@ func validateName(name string) string {
 	if strings.IndexAny(name, "<>/ ") >= 0 {
 		return ""
 	}
+	if name == "true" || name == "false" || name == "pid" || name == "uuid" ||
+		strings.HasPrefix(name, "0x") || int_re.MatchString(name) {
+		return ""
+	}
 	return name
 }
 
