@@ -221,6 +221,34 @@ func (dict Dict) AddDictEntry(kind string, name, val string) {
 	}
 }
 
+// AddTo adds the entries from src to dst.
+func (src Dict) AddTo(dst Dict) {
+	for name, srcDE := range src {
+		dstDE := dst[name]
+		if dstDE == nil {
+			dstDE = &DictEntry{}
+			dst[name] = dstDE
+		}
+		dstDE.Kind = srcDE.Kind
+		dstDE.Seen += srcDE.Seen
+		if srcDE.Vals != nil {
+			if dstDE.Vals == nil {
+				dstDE.Vals = map[string]int{}
+			}
+			for v, vi := range srcDE.Vals {
+				dstDE.Vals[v] += vi
+			}
+		}
+		if dstDE.MinInt < srcDE.MinInt {
+			dstDE.MinInt = srcDE.MinInt
+		}
+		if dstDE.MaxInt > srcDE.MaxInt {
+			dstDE.MaxInt = srcDE.MaxInt
+		}
+		dstDE.TotInt += srcDE.TotInt
+	}
+}
+
 // ------------------------------------------------------------
 
 type fileProcessor struct {
