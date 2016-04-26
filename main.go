@@ -18,8 +18,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"go/scanner"
@@ -59,8 +61,8 @@ func parseArgs(args []string) *Run {
 		"optional, comma-separated list of parts to emit; valid values:\n"+
 			"          NAME - emit name=value pairs;\n"+
 			"          STRS - emit strings between name=value pairs;\n"+
-            "          TAIL - emit string after last name=value pair;\n"+
-            "       ")
+			"          TAIL - emit string after last name=value pair;\n"+
+			"       ")
 	flagSet.IntVar(&run.Verbose, "v", 0,
 		"optional, use a higher number for more verbose stderr logging")
 	flagSet.Parse(args[1:])
@@ -131,15 +133,21 @@ func (run *Run) processDir(dir string) error {
 // ------------------------------------------------------------
 
 type DictEntry struct {
-	Kind string         // Valid values are "INT", "STRING".
-	Seen int            // Count of number of times this entry was seen.
-	Vals map[string]int // When kind is "STRING", sub-dictionary of value counts.
+	Kind string // Valid values are "INT", "STRING".
+	Seen int    // Count of number of times this entry was seen.
+
+	// When kind is "STRING", sub-dictionary of value counts.
+	Vals map[string]int `json:"Vals,omitempty"`
+
+	MinInt int64 `json:"MinInt,omitempty"`
+	MaxInt int64 `json:"MaxInt,omitempty"`
+	TotInt int64 `json:"TotInt,omitempty"`
 }
 
 func (run *Run) addDictEntry(kind, name, val string) {
 	d := run.dict[name]
 	if d == nil {
-		d = &DictEntry{Kind: kind}
+		d = &DictEntry{Kind: kind, MinInt: math.MaxInt64, MaxInt: math.MinInt64}
 
 		run.dict[name] = d
 
@@ -152,6 +160,17 @@ func (run *Run) addDictEntry(kind, name, val string) {
 
 	if d.Vals != nil {
 		d.Vals[val]++
+	} else if d.Kind == "INT" && val != "" {
+		v, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			if d.MinInt > v {
+				d.MinInt = v
+			}
+			if d.MaxInt < v {
+				d.MaxInt = v
+			}
+			d.TotInt += v
+		}
 	}
 }
 
