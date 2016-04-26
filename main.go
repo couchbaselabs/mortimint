@@ -101,6 +101,15 @@ func (run *Run) process() {
 	if run.DictPath != "" {
 		fmt.Fprintf(os.Stderr, "emitting dictionary: %s\n", run.DictPath)
 
+		for _, d := range run.dict {
+			if d.MinInt >= math.MaxInt64 {
+				d.MinInt = 0
+			}
+			if d.MaxInt <= math.MinInt64 {
+				d.MaxInt = 0
+			}
+		}
+
 		f, err := os.OpenFile(run.DictPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			log.Fatal(err)
