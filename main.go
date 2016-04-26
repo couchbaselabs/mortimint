@@ -42,7 +42,6 @@ type Run struct {
 	EmitOrig  bool     // When true, also emit original log entries to stdout.
 	EmitParts string   // Comma-separated list of parts of data to emit (NAME, STRS, TAIL).
 	EmitTypes string   // Comma-separated list of value types to emit (INT, STRING),
-	Verbose   int      // More verbosity when number is greater.
 	Dirs      []string // Directories to process.
 
 	emitParts map[string]bool // True when that part should be emitted.
@@ -74,8 +73,6 @@ func parseArgs(args []string) *Run {
 			"          INT    - emit integer values;\n"+
 			"          STRING - emit string values;\n"+
 			"       ")
-	flagSet.IntVar(&run.Verbose, "v", 0,
-		"optional, use a higher number for more verbose stderr logging")
 	flagSet.Parse(args[1:])
 
 	run.Dirs = flagSet.Args()
