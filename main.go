@@ -133,7 +133,7 @@ func (run *Run) processDir(dir string) error {
 // ------------------------------------------------------------
 
 type DictEntry struct {
-	Kind string // Valid values are "INT", "STRING".
+	Kind string // For exmaple, "INT" or "STRING".
 	Seen int    // Count of number of times this entry was seen.
 
 	// When kind is "STRING", sub-dictionary of value counts.
@@ -144,7 +144,7 @@ type DictEntry struct {
 	TotInt int64 `json:"TotInt,omitempty"`
 }
 
-func (run *Run) addDictEntry(kind, name, val string) {
+func (run *Run) AddDictEntry(kind string, name, val string) string {
 	d := run.dict[name]
 	if d == nil {
 		d = &DictEntry{Kind: kind, MinInt: math.MaxInt64, MaxInt: math.MinInt64}
@@ -160,9 +160,11 @@ func (run *Run) addDictEntry(kind, name, val string) {
 
 	if d.Vals != nil {
 		d.Vals[val]++
-	} else if d.Kind == "INT" && val != "" {
+	}
+
+	if d.Kind == "INT" && val != "" {
 		v, err := strconv.ParseInt(val, 10, 64)
-		if err != nil {
+		if err == nil {
 			if d.MinInt > v {
 				d.MinInt = v
 			}
@@ -172,6 +174,8 @@ func (run *Run) addDictEntry(kind, name, val string) {
 			d.TotInt += v
 		}
 	}
+
+	return name
 }
 
 // ------------------------------------------------------------
@@ -391,22 +395,22 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 
 			s = nil
 
-			name := nameFromTokLits(tokLits[0:i])
+			name := validateName(nameFromTokLits(tokLits[0:i]))
+			if name != "" {
+				namePath := path
+				if len(namePath) <= 0 {
+					namePath = strings.Split(name, " ")
+					name = namePath[len(namePath)-1]
+					namePath = namePath[0 : len(namePath)-1]
+				}
 
-			namePath := path
-			if len(namePath) <= 0 {
-				namePath = strings.Split(name, " ")
-				name = namePath[len(namePath)-1]
-				namePath = namePath[0 : len(namePath)-1]
-			}
-
-			if len(name) > 0 {
-				p.run.addDictEntry(tokLit.tok.String(), name, tokLit.lit)
-
-				if p.run.emitParts["NAME"] {
-					fmt.Printf("  %s %s/%s:%d:%d NAME %+v %s = %s %s\n",
-						ts, p.dirBase, p.fname, startOffset, startLine,
-						namePath, name, tokLit.tok, tokLit.lit)
+				if len(name) > 0 {
+					name = p.run.AddDictEntry(tokLit.tok.String(), name, tokLit.lit)
+					if name != "" && p.run.emitParts["NAME"] {
+						fmt.Printf("  %s %s/%s:%d:%d NAME %+v %s = %s %s\n",
+							ts, p.dirBase, p.fname, startOffset, startLine,
+							namePath, name, tokLit.tok, tokLit.lit)
+					}
 				}
 			}
 		} else {
@@ -433,6 +437,14 @@ func nameFromTokLits(tokLits []tokLit) string {
 		}
 	}
 	return ""
+}
+
+func validateName(name string) string {
+	name = strings.Trim(name, " \t\n\"")
+	if strings.IndexAny(name, "<>/ ") >= 0 {
+		return ""
+	}
+	return name
 }
 
 func tokenLitString(tok token.Token, lit string) string {
