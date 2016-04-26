@@ -13,6 +13,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -41,13 +42,13 @@ type Run struct {
 	Verbose   int      // More verbosity when number is greater.
 	Dirs      []string // Directories to process.
 
-	dict map[string]*DictEntry
+	emitParts map[string]bool // True when that part should be emitted.
 
-	emitParts map[string]bool
+	dict map[string]*DictEntry
 }
 
 func parseArgs(args []string) *Run {
-	run := &Run{dict: map[string]*DictEntry{}, emitParts: map[string]bool{}}
+	run := &Run{emitParts: map[string]bool{}, dict: map[string]*DictEntry{}}
 
 	flagSet := flag.NewFlagSet(args[0], flag.ExitOnError)
 	flagSet.StringVar(&run.DictPath, "dictPath", "",
@@ -78,6 +79,21 @@ func parseArgs(args []string) *Run {
 func (run *Run) process() {
 	for _, dir := range run.Dirs {
 		err := run.processDir(dir)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if run.DictPath != "" {
+		fmt.Fprintf(os.Stderr, "emitting dictionary: %s\n", run.DictPath)
+
+		f, err := os.OpenFile(run.DictPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+
+		err = json.NewEncoder(f).Encode(run.dict)
 		if err != nil {
 			log.Fatal(err)
 		}
