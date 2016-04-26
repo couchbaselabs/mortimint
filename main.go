@@ -44,17 +44,20 @@ type Run struct {
 	EmitTypes string   // Comma-separated list of value types to emit (INT, STRING),
 	Dirs      []string // Directories to process.
 
+	Web     bool
+	WebAddr string
+
 	emitParts map[string]bool // True when that part should be emitted.
 	emitTypes map[string]bool // True when that value type should be emitted.
 
-	dict map[string]*DictEntry
+	dict Dict
 }
 
 func parseArgs(args []string) *Run {
 	run := &Run{
 		emitParts: map[string]bool{},
 		emitTypes: map[string]bool{},
-		dict:      map[string]*DictEntry{},
+		dict:      Dict{},
 	}
 
 	flagSet := flag.NewFlagSet(args[0], flag.ExitOnError)
@@ -184,12 +187,14 @@ type DictEntry struct {
 	TotInt int64 `json:"TotInt,omitempty"`
 }
 
-func (run *Run) AddDictEntry(kind string, name, val string) {
-	d := run.dict[name]
+type Dict map[string]*DictEntry
+
+func (dict Dict) AddDictEntry(kind string, name, val string) {
+	d := dict[name]
 	if d == nil {
 		d = &DictEntry{Kind: kind, MinInt: math.MaxInt64, MaxInt: math.MinInt64}
 
-		run.dict[name] = d
+		dict[name] = d
 
 		if kind == "STRING" && name != "median" {
 			d.Vals = map[string]int{}
@@ -443,7 +448,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 				}
 
 				if name != "" {
-					p.run.AddDictEntry(tokStr, name, tokLit.lit)
+					p.run.dict.AddDictEntry(tokStr, name, tokLit.lit)
 					p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
 						"NAME", namePath, name, tokStr, tokLit.lit, false)
 				}
