@@ -1,8 +1,9 @@
 package main
 
 import (
-	"math"
 	"strconv"
+
+	"github.com/couchbaselabs/ghistogram"
 )
 
 // Dict represents a mapping of names to DictEntry's.
@@ -10,44 +11,42 @@ type Dict map[string]*DictEntry
 
 type DictEntry struct {
 	Kind string // For exmaple, "INT" or "STRING".
-	Seen int    // Count of number of times this entry was seen.
+	Seen uint64 // Count of number of times this entry was seen.
 
 	// When the Kind is "STRING", sub-dictionary of value counts.
-	Vals map[string]int `json:"Vals,omitempty"`
+	Vals map[string]uint64 `json:"Vals,omitempty"`
 
-	MinInt int64 `json:"MinInt,omitempty"`
-	MaxInt int64 `json:"MaxInt,omitempty"`
-	TotInt int64 `json:"TotInt,omitempty"`
+	IntHistogram *ghistogram.Histogram `json:"IntHistogram,omitempty"`
+	IntTotal     int64                 `json:"IntTotal,omitempty"`
 }
 
 func (dict Dict) AddDictEntry(kind string, name, val string) {
-	d := dict[name]
-	if d == nil {
-		d = &DictEntry{Kind: kind, MinInt: math.MaxInt64, MaxInt: math.MinInt64}
+	de := dict[name]
+	if de == nil {
+		de = &DictEntry{Kind: kind}
 
-		dict[name] = d
+		dict[name] = de
 
 		if kind == "STRING" && name != "median" {
-			d.Vals = map[string]int{}
+			de.Vals = map[string]uint64{}
+		}
+
+		if kind == "INT" {
+			de.IntHistogram = ghistogram.NewHistogram(20, 10, 3.0)
 		}
 	}
 
-	d.Seen++
+	de.Seen++
 
-	if d.Vals != nil {
-		d.Vals[val]++
+	if de.Vals != nil {
+		de.Vals[val]++
 	}
 
-	if d.Kind == "INT" && val != "" {
+	if de.IntHistogram != nil && val != "" {
 		v, err := strconv.ParseInt(val, 10, 64)
-		if err == nil {
-			if d.MinInt > v {
-				d.MinInt = v
-			}
-			if d.MaxInt < v {
-				d.MaxInt = v
-			}
-			d.TotInt += v
+		if err == nil && v >= 0 {
+			de.IntHistogram.Add(uint64(v), 1)
+			de.IntTotal += v
 		}
 	}
 }
@@ -57,7 +56,7 @@ func (src Dict) AddTo(dst Dict) {
 	for name, srcDE := range src {
 		dstDE := dst[name]
 		if dstDE == nil {
-			dstDE = &DictEntry{MinInt: math.MaxInt64, MaxInt: math.MinInt64}
+			dstDE = &DictEntry{}
 			dst[name] = dstDE
 		}
 
@@ -66,19 +65,19 @@ func (src Dict) AddTo(dst Dict) {
 
 		if srcDE.Vals != nil {
 			if dstDE.Vals == nil {
-				dstDE.Vals = map[string]int{}
+				dstDE.Vals = map[string]uint64{}
 			}
 			for v, vi := range srcDE.Vals {
 				dstDE.Vals[v] += vi
 			}
 		}
 
-		if dstDE.MinInt > srcDE.MinInt {
-			dstDE.MinInt = srcDE.MinInt
+		if srcDE.IntHistogram != nil {
+			if dstDE.IntHistogram == nil {
+				dstDE.IntHistogram = ghistogram.NewHistogram(20, 10, 2.0)
+			}
+			dstDE.IntHistogram.AddAll(srcDE.IntHistogram)
+			dstDE.IntTotal += srcDE.IntTotal
 		}
-		if dstDE.MaxInt < srcDE.MaxInt {
-			dstDE.MaxInt = srcDE.MaxInt
-		}
-		dstDE.TotInt += srcDE.TotInt
 	}
 }
