@@ -73,8 +73,6 @@ func (p *fileProcessor) process() error {
 
 	p.processEntry(entryStartOffset, entryStartLine, entryLines)
 
-	p.dict.AddTo(p.run.dict)
-
 	return scanner.Err()
 }
 

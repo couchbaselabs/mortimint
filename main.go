@@ -41,6 +41,8 @@ type Run struct {
 	Web     bool   // When true, run a web server instead of emitting to stdout.
 	WebBind string // Host:Port that web server should use.
 
+	Workers int // Size of workers pool for concurrency.
+
 	emitParts map[string]bool // True when that part should be emitted.
 	emitTypes map[string]bool // True when that value type should be emitted.
 
@@ -76,6 +78,9 @@ func parseArgsToRun(args []string) *Run {
 	flagSet.StringVar(&run.WebBind, "webAddr", ":8911",
 		"optional, addr:port that web server should use to bind/listen to.\n"+
 			"       ")
+	flagSet.IntVar(&run.Workers, "workers", 1,
+		"optional, number of concurrent workers to use.\n"+
+			"       ")
 
 	flagSet.Parse(args[1:])
 
@@ -95,12 +100,37 @@ func parseArgsToRun(args []string) *Run {
 // ------------------------------------------------------------
 
 func (run *Run) process() {
+	workCh := make(chan *fileProcessor, len(run.Dirs)*100)
+	doneCh := make(chan *fileProcessor)
+
+	for i := 0; i < run.Workers; i++ {
+		go func() {
+			for fp := range workCh {
+				err := fp.process()
+				if err != nil {
+					log.Fatal(err)
+				}
+				doneCh <- fp
+			}
+		}()
+	}
+
+	totFileProcessors := 0
 	for _, dir := range run.Dirs {
-		err := run.processDir(dir)
+		numFileProcessors, err := run.processDir(dir, workCh)
 		if err != nil {
 			log.Fatal(err)
 		}
+		totFileProcessors += numFileProcessors
 	}
+	close(workCh)
+
+	for i := 0; i < totFileProcessors; i++ {
+		fp := <-doneCh
+		fp.dict.AddTo(run.dict)
+	}
+
+	// -----------------------------------------------
 
 	if run.DictPath != "" {
 		fmt.Fprintf(os.Stderr, "emitting dictionary: %s\n", run.DictPath)
@@ -118,10 +148,12 @@ func (run *Run) process() {
 	}
 }
 
-func (run *Run) processDir(dir string) error {
+func (run *Run) processDir(dir string, workCh chan *fileProcessor) (int, error) {
+	numFileProcessors := 0
+
 	fileInfos, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	dirBase := path.Base(dir)
@@ -135,7 +167,7 @@ func (run *Run) processDir(dir string) error {
 			continue
 		}
 
-		fp := &fileProcessor{
+		workCh <- &fileProcessor{
 			run:     run,
 			dir:     dir,
 			dirBase: dirBase,
@@ -144,13 +176,10 @@ func (run *Run) processDir(dir string) error {
 			dict:    Dict{},
 		}
 
-		err := fp.process()
-		if err != nil {
-			return err
-		}
+		numFileProcessors++
 	}
 
-	return nil
+	return numFileProcessors, nil
 }
 
 // ------------------------------------------------------------
