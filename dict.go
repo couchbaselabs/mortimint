@@ -6,6 +6,11 @@ import (
 	"github.com/couchbaselabs/ghistogram"
 )
 
+func MakeHistogram() *ghistogram.Histogram {
+	// The 3 params are number of bins, first-bin-width, growth-factor.
+	return ghistogram.NewHistogram(20, 10, 3.0)
+}
+
 // Dict represents a mapping of names to DictEntry's.
 type Dict map[string]*DictEntry
 
@@ -32,7 +37,7 @@ func (dict Dict) AddDictEntry(kind string, name, val string) {
 		}
 
 		if kind == "INT" {
-			de.IntHistogram = ghistogram.NewHistogram(20, 10, 3.0)
+			de.IntHistogram = MakeHistogram()
 		}
 	}
 
@@ -74,7 +79,7 @@ func (src Dict) AddTo(dst Dict) {
 
 		if srcDE.IntHistogram != nil {
 			if dstDE.IntHistogram == nil {
-				dstDE.IntHistogram = ghistogram.NewHistogram(20, 10, 2.0)
+				dstDE.IntHistogram = MakeHistogram()
 			}
 			dstDE.IntHistogram.AddAll(srcDE.IntHistogram)
 			dstDE.IntTotal += srcDE.IntTotal
