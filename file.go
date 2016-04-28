@@ -11,23 +11,19 @@ import (
 )
 
 type fileProcessor struct {
-	run *Run
-
+	run     *Run
 	dir     string
 	dirBase string
 	fname   string
 	fmeta   FileMeta
-
-	dict Dict
-
-	buf []byte // Reusable buf to reduce garbage.
+	dict    Dict
+	buf     []byte // Reusable buf to reduce garbage.
 }
 
 // A tokLit associates a token and a literal string.
 type tokLit struct {
-	tok token.Token
-	lit string
-
+	tok     token.Token
+	lit     string
 	emitted bool // Marked true when this tokLit has been emitted.
 }
 
@@ -214,7 +210,7 @@ func (p *fileProcessor) processEntryTokens(startOffset, startLine int,
 }
 
 // emitTokLits invokes run.emit() on the tokens that haven't been
-// emitted yet, along with more string preprocessing & cleanup, too.
+// emitted yet, along with heuristic preprocessing & cleanup, too.
 func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 	path []string, tokLits []tokLit, startAt int) int {
 	var s []string
@@ -277,10 +273,8 @@ func nameFromTokLits(tokLits []tokLit) string {
 // otherwise, returns "" for an invalid name.
 func cleanseName(name string) string {
 	name = strings.Trim(name, " \t\n\"")
-	if strings.IndexAny(name, "<>/ ") >= 0 {
-		return ""
-	}
-	if name == "true" || name == "false" ||
+	if strings.IndexAny(name, "<>/ ") >= 0 ||
+		name == "true" || name == "false" ||
 		name == "ok" || name == "pid" || name == "uuid" ||
 		strings.HasPrefix(name, "0x") || int_re.MatchString(name) {
 		return ""
