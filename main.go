@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 )
 
 var ScannerBufferCapacity = 20 * 1024 * 1024
@@ -47,6 +48,8 @@ type Run struct {
 	emitTypes map[string]bool // True when that value type should be emitted.
 
 	dict Dict
+
+	m sync.Mutex
 }
 
 func parseArgsToRun(args []string) *Run {
@@ -191,6 +194,8 @@ func (run *Run) emit(timeStamp, dirBase, fname string, startOffset, startLine in
 			name = name + " "
 		}
 
+		run.m.Lock()
+
 		if valQuoted {
 			fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %q\n",
 				timeStamp, dirBase, fname, startOffset, startLine,
@@ -200,5 +205,7 @@ func (run *Run) emit(timeStamp, dirBase, fname string, startOffset, startLine in
 				timeStamp, dirBase, fname, startOffset, startLine,
 				partKind, namePath, name, valType, val)
 		}
+
+		run.m.Unlock()
 	}
 }
