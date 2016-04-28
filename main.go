@@ -31,7 +31,7 @@ import (
 var ScannerBufferCapacity = 20 * 1024 * 1024
 
 func main() {
-	parseArgs(os.Args).process()
+	parseArgsToRun(os.Args).process()
 }
 
 // ------------------------------------------------------------
@@ -53,7 +53,7 @@ type Run struct {
 	dict Dict
 }
 
-func parseArgs(args []string) *Run {
+func parseArgsToRun(args []string) *Run {
 	run := &Run{
 		emitParts: map[string]bool{},
 		emitTypes: map[string]bool{},
@@ -61,6 +61,7 @@ func parseArgs(args []string) *Run {
 	}
 
 	flagSet := flag.NewFlagSet(args[0], flag.ExitOnError)
+
 	flagSet.StringVar(&run.DictPath, "dictPath", "",
 		"optional, path to output JSON dictionary file.")
 	flagSet.BoolVar(&run.EmitOrig, "emitOrig", false,
@@ -79,7 +80,8 @@ func parseArgs(args []string) *Run {
 	flagSet.BoolVar(&run.Web, "web", false,
 		"optional, when true, run a web server instead of emitting to stdout.")
 	flagSet.StringVar(&run.WebBind, "webAddr", ":8911",
-		"optional, addr:port that web server should use to bind/listen to.")
+		"optional, addr:port that web server should use to bind/listen to.\n"+
+			"       ")
 
 	flagSet.Parse(args[1:])
 
@@ -94,6 +96,27 @@ func parseArgs(args []string) *Run {
 	}
 
 	return run
+}
+
+// ------------------------------------------------------------
+
+func (run *Run) emit(timeStamp, dirBase, fname string, startOffset, startLine int,
+	partKind string, namePath []string, name, valType, val string, valQuoted bool) {
+	if run.emitParts[partKind] && len(val) > 0 {
+		if name != "" {
+			name = name + " "
+		}
+
+		if valQuoted {
+			fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %q\n",
+				timeStamp, dirBase, fname, startOffset, startLine,
+				partKind, namePath, name, valType, val)
+		} else {
+			fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %s\n",
+				timeStamp, dirBase, fname, startOffset, startLine,
+				partKind, namePath, name, valType, val)
+		}
+	}
 }
 
 // ------------------------------------------------------------
@@ -164,27 +187,6 @@ func (run *Run) processDir(dir string) error {
 	}
 
 	return nil
-}
-
-// ------------------------------------------------------------
-
-func (run *Run) emit(ts, dirBase, fname string, startOffset, startLine int,
-	partKind string, namePath []string, name, valType, val string, valQuoted bool) {
-	if run.emitParts[partKind] && len(val) > 0 {
-		if name != "" {
-			name = name + " "
-		}
-
-		if valQuoted {
-			fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %q\n",
-				ts, dirBase, fname, startOffset, startLine,
-				partKind, namePath, name, valType, val)
-		} else {
-			fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %s\n",
-				ts, dirBase, fname, startOffset, startLine,
-				partKind, namePath, name, valType, val)
-		}
-	}
 }
 
 // ------------------------------------------------------------
