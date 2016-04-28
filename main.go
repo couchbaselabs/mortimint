@@ -44,8 +44,8 @@ type Run struct {
 	EmitTypes string   // Comma-separated list of value types to emit (INT, STRING),
 	Dirs      []string // Directories to process.
 
-	Web     bool
-	WebAddr string
+	Web     bool   // When true, run a web server instead of emitting to stdout.
+	WebBind string // Host:Port that web server should use.
 
 	emitParts map[string]bool // True when that part should be emitted.
 	emitTypes map[string]bool // True when that value type should be emitted.
@@ -76,6 +76,11 @@ func parseArgs(args []string) *Run {
 			"          INT    - emit integer values;\n"+
 			"          STRING - emit string values;\n"+
 			"       ")
+	flagSet.BoolVar(&run.Web, "web", false,
+		"optional, when true, run a web server instead of emitting to stdout.")
+	flagSet.StringVar(&run.WebBind, "webAddr", ":8911",
+		"optional, addr:port that web server should use to bind/listen to.")
+
 	flagSet.Parse(args[1:])
 
 	run.Dirs = flagSet.Args()
