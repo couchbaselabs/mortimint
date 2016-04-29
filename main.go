@@ -108,6 +108,21 @@ func parseArgsToRun(args []string) *Run {
 // ------------------------------------------------------------
 
 func (run *Run) process() {
+	maxFNameOutLen := 0
+	for _, dir := range run.Dirs {
+		fileInfos, err := ioutil.ReadDir(dir)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for _, fileInfo := range fileInfos {
+			x := len(path.Base(dir)) + len(fileInfo.Name()) + 1
+			if maxFNameOutLen < x {
+				maxFNameOutLen = x
+			}
+		}
+	}
+
 	workCh := make(chan *fileProcessor, len(run.Dirs)*100)
 	doneCh := make(chan *fileProcessor)
 
@@ -124,7 +139,7 @@ func (run *Run) process() {
 	}
 
 	for _, dir := range run.Dirs {
-		numFileProcessors, err := run.processDir(dir, workCh)
+		numFileProcessors, err := run.processDir(dir, workCh, maxFNameOutLen)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -155,7 +170,8 @@ func (run *Run) process() {
 	}
 }
 
-func (run *Run) processDir(dir string, workCh chan *fileProcessor) (int, error) {
+func (run *Run) processDir(dir string, workCh chan *fileProcessor,
+	maxFNameOutLen int) (int, error) {
 	numFileProcessors := 0
 
 	fileInfos, err := ioutil.ReadDir(dir)
@@ -167,6 +183,8 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor) (int, error) 
 
 	run.fileProcessors[dirBase] = map[string]*fileProcessor{}
 
+	spaces := strings.Repeat(" ", maxFNameOutLen)
+
 	for _, fileInfo := range fileInfos {
 		fname := fileInfo.Name()
 
@@ -177,12 +195,13 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor) (int, error) 
 		}
 
 		run.fileProcessors[dirBase][fname] = &fileProcessor{
-			run:     run,
-			dir:     dir,
-			dirBase: dirBase,
-			fname:   fname,
-			fmeta:   fmeta,
-			dict:    Dict{},
+			run:      run,
+			dir:      dir,
+			dirBase:  dirBase,
+			fname:    fname,
+			fnameOut: (dirBase + "/" + fname + spaces)[0:maxFNameOutLen],
+			fmeta:    fmeta,
+			dict:     Dict{},
 		}
 
 		workCh <- run.fileProcessors[dirBase][fname]
@@ -195,7 +214,7 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor) (int, error) 
 
 // ------------------------------------------------------------
 
-func (run *Run) emit(timeStamp, module, level, dirBase, fname string,
+func (run *Run) emit(timeStamp, module, level, dirBase, fname, fnameOut string,
 	startOffset, startLine int, partKind string, namePath []string,
 	name, valType, val string, valQuoted bool) {
 	if run.emitParts[partKind] && len(val) > 0 {
@@ -203,16 +222,23 @@ func (run *Run) emit(timeStamp, module, level, dirBase, fname string,
 			name = name + " "
 		}
 
+		ol := fmt.Sprintf("%d:%d", startOffset, startLine)
+		ol = (ol + "                ")[0:12]
+
+		if module == "" {
+			module = "?"
+		}
+
 		run.m.Lock()
 
 		if valQuoted {
-			fmt.Printf("  %s %s %s/%s:%d:%d %s %s %+v %s= %s %q\n",
-				timeStamp, level, dirBase, fname, startOffset, startLine,
-				module, partKind, namePath, name, valType, val)
+			fmt.Printf("  %s %s %s %s %s %s %+v %s= %s %q\n",
+				timeStamp, level, fnameOut, ol,
+				partKind, module, namePath, name, valType, val)
 		} else {
-			fmt.Printf("  %s %s %s/%s:%d:%d %s %s %+v %s= %s %s\n",
-				timeStamp, level, dirBase, fname, startOffset, startLine,
-				module, partKind, namePath, name, valType, val)
+			fmt.Printf("  %s %s %s %s %s %s %+v %s= %s %s\n",
+				timeStamp, level, fnameOut, ol,
+				partKind, module, namePath, name, valType, val)
 		}
 
 		run.m.Unlock()

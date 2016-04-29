@@ -11,13 +11,14 @@ import (
 )
 
 type fileProcessor struct {
-	run     *Run
-	dir     string
-	dirBase string
-	fname   string
-	fmeta   FileMeta
-	dict    Dict
-	buf     []byte // Reusable buf to reduce garbage.
+	run      *Run
+	dir      string
+	dirBase  string
+	fname    string
+	fnameOut string
+	fmeta    FileMeta
+	dict     Dict
+	buf      []byte // Reusable buf to reduce garbage.
 }
 
 // A tokLit associates a token and a literal string.
@@ -234,8 +235,8 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int,
 		tokStr := tokLit.tok.String()
 		if p.run.emitTypes[tokStr] {
 			strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-			p.run.emit(ts, module, level, p.dirBase, p.fname, startOffset, startLine,
-				"STRS", path, "", "STRING", strs, true)
+			p.run.emit(ts, module, level, p.dirBase, p.fname, p.fnameOut,
+				startOffset, startLine, "STRS", path, "", "STRING", strs, true)
 
 			s = nil
 
@@ -250,8 +251,9 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int,
 
 				if name != "" {
 					p.dict.AddDictEntry(tokStr, name, tokLit.lit)
-					p.run.emit(ts, module, level, p.dirBase, p.fname, startOffset, startLine,
-						"NAME", namePath, name, tokStr, tokLit.lit, false)
+					p.run.emit(ts, module, level, p.dirBase, p.fname, p.fnameOut,
+						startOffset, startLine, "NAME", namePath,
+						name, tokStr, tokLit.lit, false)
 				}
 			}
 		} else {
@@ -260,8 +262,8 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int,
 	}
 
 	strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-	p.run.emit(ts, module, level, p.dirBase, p.fname, startOffset, startLine,
-		"TAIL", path, "", "STRING", strs, true)
+	p.run.emit(ts, module, level, p.dirBase, p.fname, p.fnameOut,
+		startOffset, startLine, "TAIL", path, "", "STRING", strs, true)
 
 	return len(tokLits)
 }
