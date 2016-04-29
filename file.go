@@ -89,16 +89,26 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 
 	firstLine := lines[0]
 
-	match := p.fmeta.PrefixRE.FindStringSubmatch(firstLine)
-	if len(match) <= 0 {
+	matchIndex := p.fmeta.PrefixRE.FindStringSubmatchIndex(firstLine)
+	if len(matchIndex) <= 0 {
 		return
 	}
 
 	ts := string(p.fmeta.PrefixRE.ExpandString(nil,
-		"${year}-${month}-${day}T${HH}:${MM}:${SS}-${SSSS}", firstLine,
-		p.fmeta.PrefixRE.FindSubmatchIndex([]byte(firstLine))))
+		"${year}-${month}-${day}T${HH}:${MM}:${SS}.${SSSS}", firstLine, matchIndex))
+	if len(ts) > len("2016-04-19T23:10:31.209") {
+		ts = ts[0:len("2016-04-19T23:10:31.209")]
+	}
 
-	lines[0] = firstLine[len(match[0]):] // Strip off PrefixRE's match.
+	module := string(p.fmeta.PrefixRE.ExpandString(nil, "${module}", firstLine, matchIndex))
+
+	level := string(p.fmeta.PrefixRE.ExpandString(nil, "${level}", firstLine, matchIndex))
+	level = strings.ToUpper(strings.Trim(level, "[]"))
+	if len(level) > 4 {
+		level = level[0:4]
+	}
+
+	lines[0] = firstLine[matchIndex[1]:] // Strip off PrefixRE's match.
 
 	p.buf = p.buf[0:0]
 	for _, line := range lines {
@@ -117,7 +127,8 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 	s.Init(fset.AddFile(p.dir+"/"+p.fname, fset.Base(),
 		len(p.buf)), p.buf, nil /* No error handler. */, 0)
 
-	p.processEntryTokens(startOffset, startLine, ts, &s, make([]string, 0, 20))
+	p.processEntryTokens(startOffset, startLine, ts, module, level, &s,
+		make([]string, 0, 20))
 }
 
 // levelDelta tells us how some tokens affect our "depth" of nesting.
@@ -153,7 +164,7 @@ var skipToken = map[token.Token]bool{
 }
 
 func (p *fileProcessor) processEntryTokens(startOffset, startLine int,
-	ts string, s *scanner.Scanner, path []string) {
+	ts, module, level string, s *scanner.Scanner, path []string) {
 	var tokLits []tokLit
 	var emitted int
 
@@ -175,11 +186,11 @@ func (p *fileProcessor) processEntryTokens(startOffset, startLine int,
 				pathSub = append(pathSub, pathPart)
 			}
 
-			emitted = p.emitTokLits(startOffset, startLine, ts, path,
-				tokLits, emitted)
+			emitted = p.emitTokLits(startOffset, startLine, ts, module, level,
+				path, tokLits, emitted)
 
 			// Recurse on nested sub-level.
-			p.processEntryTokens(startOffset, startLine, ts, s, pathSub)
+			p.processEntryTokens(startOffset, startLine, ts, module, level, s, pathSub)
 		} else if delta < 0 {
 			break // Return from nested sub-level recursion.
 		} else {
@@ -204,13 +215,13 @@ func (p *fileProcessor) processEntryTokens(startOffset, startLine int,
 		}
 	}
 
-	p.emitTokLits(startOffset, startLine, ts, path, tokLits, emitted)
+	p.emitTokLits(startOffset, startLine, ts, module, level, path, tokLits, emitted)
 }
 
 // emitTokLits invokes run.emit() on the tokens that haven't been
 // emitted yet, along with heuristic preprocessing & cleanup, too.
-func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
-	path []string, tokLits []tokLit, startAt int) int {
+func (p *fileProcessor) emitTokLits(startOffset, startLine int,
+	ts, module, level string, path []string, tokLits []tokLit, startAt int) int {
 	var s []string
 
 	for i := startAt; i < len(tokLits); i++ {
@@ -223,7 +234,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 		tokStr := tokLit.tok.String()
 		if p.run.emitTypes[tokStr] {
 			strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-			p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
+			p.run.emit(ts, module, level, p.dirBase, p.fname, startOffset, startLine,
 				"STRS", path, "", "STRING", strs, true)
 
 			s = nil
@@ -239,7 +250,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 
 				if name != "" {
 					p.dict.AddDictEntry(tokStr, name, tokLit.lit)
-					p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
+					p.run.emit(ts, module, level, p.dirBase, p.fname, startOffset, startLine,
 						"NAME", namePath, name, tokStr, tokLit.lit, false)
 				}
 			}
@@ -249,7 +260,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int, ts string,
 	}
 
 	strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-	p.run.emit(ts, p.dirBase, p.fname, startOffset, startLine,
+	p.run.emit(ts, module, level, p.dirBase, p.fname, startOffset, startLine,
 		"TAIL", path, "", "STRING", strs, true)
 
 	return len(tokLits)

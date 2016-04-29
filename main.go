@@ -47,6 +47,10 @@ type Run struct {
 	emitParts map[string]bool // True when that part should be emitted.
 	emitTypes map[string]bool // True when that value type should be emitted.
 
+	// fileProcessors is keyed by dirBase, then by file name.
+	fileProcessors      map[string]map[string]*fileProcessor
+	fileProcessorsTotal int
+
 	dict Dict
 
 	m sync.Mutex
@@ -54,9 +58,10 @@ type Run struct {
 
 func parseArgsToRun(args []string) *Run {
 	run := &Run{
-		emitParts: map[string]bool{},
-		emitTypes: map[string]bool{},
-		dict:      Dict{},
+		emitParts:      map[string]bool{},
+		emitTypes:      map[string]bool{},
+		fileProcessors: map[string]map[string]*fileProcessor{},
+		dict:           Dict{},
 	}
 
 	flagSet := flag.NewFlagSet(args[0], flag.ExitOnError)
@@ -118,17 +123,16 @@ func (run *Run) process() {
 		}()
 	}
 
-	totFileProcessors := 0
 	for _, dir := range run.Dirs {
 		numFileProcessors, err := run.processDir(dir, workCh)
 		if err != nil {
 			log.Fatal(err)
 		}
-		totFileProcessors += numFileProcessors
+		run.fileProcessorsTotal += numFileProcessors
 	}
 	close(workCh)
 
-	for i := 0; i < totFileProcessors; i++ {
+	for i := 0; i < run.fileProcessorsTotal; i++ {
 		fp := <-doneCh
 		fp.dict.AddTo(run.dict)
 	}
@@ -161,6 +165,8 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor) (int, error) 
 
 	dirBase := path.Base(dir)
 
+	run.fileProcessors[dirBase] = map[string]*fileProcessor{}
+
 	for _, fileInfo := range fileInfos {
 		fname := fileInfo.Name()
 
@@ -170,7 +176,7 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor) (int, error) 
 			continue
 		}
 
-		workCh <- &fileProcessor{
+		run.fileProcessors[dirBase][fname] = &fileProcessor{
 			run:     run,
 			dir:     dir,
 			dirBase: dirBase,
@@ -178,6 +184,8 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor) (int, error) 
 			fmeta:   fmeta,
 			dict:    Dict{},
 		}
+
+		workCh <- run.fileProcessors[dirBase][fname]
 
 		numFileProcessors++
 	}
@@ -187,8 +195,9 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor) (int, error) 
 
 // ------------------------------------------------------------
 
-func (run *Run) emit(timeStamp, dirBase, fname string, startOffset, startLine int,
-	partKind string, namePath []string, name, valType, val string, valQuoted bool) {
+func (run *Run) emit(timeStamp, module, level, dirBase, fname string,
+	startOffset, startLine int, partKind string, namePath []string,
+	name, valType, val string, valQuoted bool) {
 	if run.emitParts[partKind] && len(val) > 0 {
 		if name != "" {
 			name = name + " "
@@ -197,13 +206,13 @@ func (run *Run) emit(timeStamp, dirBase, fname string, startOffset, startLine in
 		run.m.Lock()
 
 		if valQuoted {
-			fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %q\n",
-				timeStamp, dirBase, fname, startOffset, startLine,
-				partKind, namePath, name, valType, val)
+			fmt.Printf("  %s %s %s/%s:%d:%d %s %s %+v %s= %s %q\n",
+				timeStamp, level, dirBase, fname, startOffset, startLine,
+				module, partKind, namePath, name, valType, val)
 		} else {
-			fmt.Printf("  %s %s/%s:%d:%d %s %+v %s= %s %s\n",
-				timeStamp, dirBase, fname, startOffset, startLine,
-				partKind, namePath, name, valType, val)
+			fmt.Printf("  %s %s %s/%s:%d:%d %s %s %+v %s= %s %s\n",
+				timeStamp, level, dirBase, fname, startOffset, startLine,
+				module, partKind, namePath, name, valType, val)
 		}
 
 		run.m.Unlock()
