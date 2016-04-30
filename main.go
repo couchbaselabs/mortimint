@@ -27,9 +27,11 @@ var ScannerBufferCapacity = 20 * 1024 * 1024
 
 func main() {
 	run := parseArgsToRun(os.Args)
-	if run.Web {
+	if run.run["web"] {
+		fmt.Fprintf(os.Stderr, "running web\n")
 		run.web()
-	} else {
+	} else if run.run["stdout"] {
+		fmt.Fprintf(os.Stderr, "running stdout\n")
 		run.process()
 	}
 }
@@ -38,13 +40,15 @@ func main() {
 
 // Run is the main data struct that describes a processing run.
 type Run struct {
-	DictJson  string   // Path to optional JSON dictionary file to output.
-	EmitOrig  string   // When non-"", original log entries will be emitted to stdout.
-	EmitParts string   // Comma-separated list of parts of data to emit (NAME, MIDS, ENDS).
-	EmitTypes string   // Comma-separated list of value types to emit (INT, STRING),
-	Dirs      []string // Directories to process.
+	EmitDict  string // Path to optional JSON dictionary file to output.
+	EmitOrig  string // When non-"", original log entries will be emitted to stdout.
+	EmitParts string // Comma-separated list of parts of data to emit (NAME, MIDS, ENDS).
+	EmitTypes string // Comma-separated list of value types to emit (INT, STRING),
 
-	Web       bool   // When true, run a web server instead of emitting to stdout.
+	Dirs []string // Directories to process.
+
+	Run string // Comma-separated list of the kind of run, like "stdout,web".
+
 	WebBind   string // Host:Port that web server should use.
 	WebStatic string // Path to web static resources dir.
 
@@ -52,6 +56,7 @@ type Run struct {
 
 	emitParts map[string]bool // True when that part should be emitted.
 	emitTypes map[string]bool // True when that value type should be emitted.
+	run       map[string]bool
 
 	// fileProcessors is keyed by dirBase, then by file name.
 	fileProcessors map[string]map[string]*fileProcessor
@@ -63,36 +68,36 @@ type Run struct {
 
 func parseArgsToRun(args []string) *Run {
 	run := &Run{
-		emitParts:      map[string]bool{},
-		emitTypes:      map[string]bool{},
 		fileProcessors: map[string]map[string]*fileProcessor{},
 		dict:           Dict{},
 	}
 
 	flagSet := flag.NewFlagSet(args[0], flag.ExitOnError)
 
-	flagSet.StringVar(&run.DictJson, "dictJson", "",
+	flagSet.StringVar(&run.EmitDict, "emitDict", "",
 		"optional, path to JSON dictionary output file.")
 	flagSet.StringVar(&run.EmitOrig, "emitOrig", "",
 		"when not the empty string (\"\"), source log lines are emitted to stdout;\n"+
-			"        when \"1line\", source log lines are joined into a single line.\n"+
-			"       ")
+			"        when \"1line\", source log lines are joined into a single line.")
 	flagSet.StringVar(&run.EmitParts, "emitParts", "FULL",
-		"optional, comma-separated list of parts to emit; valid values:\n"+
+		"optional, comma-separated list of parts to emit; supported values:\n"+
 			"          FULL - emit full entry, with only light parsing;\n"+
 			"          NAME - emit name=value pairs;\n"+
 			"          MIDS - emit strings in between the name=value pairs;\n"+
 			"          ENDS - emit string after last name=value pair.\n"+
 			"       ")
 	flagSet.StringVar(&run.EmitTypes, "emitTypes", "INT",
-		"optional, comma-separated list of value types to emit; valid values:\n"+
+		"optional, comma-separated list of value types to emit; supported values:\n"+
 			"          INT    - emit integer name=value pairs;\n"+
 			"          STRING - emit string name=value pairs.\n"+
 			"       ")
-	flagSet.BoolVar(&run.Web, "web", false,
-		"optional, when true, run a web server instead of emitting to stdout.")
+	flagSet.StringVar(&run.Run, "run", "stdout",
+		"optional, comma-separated list of the kind of run; supported values:\n"+
+			"          stdout - emit processed logs to stdout;\n"+
+			"          web    - run a webserver.\n"+
+			"       ")
 	flagSet.StringVar(&run.WebBind, "webAddr", ":8911",
-		"optional, addr:port that web server should use to bind/listen to.\n"+
+		"optional, addr:port when running a web server.\n"+
 			"       ")
 	flagSet.StringVar(&run.WebStatic, "webStatic", "./static",
 		"optional, directory of web static resources.\n"+
@@ -105,15 +110,18 @@ func parseArgsToRun(args []string) *Run {
 
 	run.Dirs = flagSet.Args()
 
-	for _, part := range strings.Split(run.EmitParts, ",") {
-		run.emitParts[part] = true
-	}
-
-	for _, typE := range strings.Split(run.EmitTypes, ",") {
-		run.emitTypes[typE] = true
-	}
+	run.emitParts = csvToMap(run.EmitParts, map[string]bool{})
+	run.emitTypes = csvToMap(run.EmitTypes, map[string]bool{})
+	run.run = csvToMap(run.Run, map[string]bool{})
 
 	return run
+}
+
+func csvToMap(csv string, m map[string]bool) map[string]bool {
+	for _, k := range strings.Split(csv, ",") {
+		m[k] = true
+	}
+	return m
 }
 
 // ------------------------------------------------------------
@@ -174,10 +182,10 @@ func (run *Run) process() {
 
 	// -----------------------------------------------
 
-	if run.DictJson != "" {
-		fmt.Fprintf(os.Stderr, "emitting JSON dictionary: %s\n", run.DictJson)
+	if run.EmitDict != "" {
+		fmt.Fprintf(os.Stderr, "emitting JSON dictionary: %s\n", run.EmitDict)
 
-		f, err := os.OpenFile(run.DictJson, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		f, err := os.OpenFile(run.EmitDict, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			log.Fatal(err)
 		}
