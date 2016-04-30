@@ -39,9 +39,6 @@ type Run struct {
 	EmitTypes string   // Comma-separated list of value types to emit (INT, STRING),
 	Dirs      []string // Directories to process.
 
-	Web     bool   // When true, run a web server instead of emitting to stdout.
-	WebBind string // Host:Port that web server should use.
-
 	Workers int // Size of workers pool for concurrency.
 
 	emitParts map[string]bool // True when that part should be emitted.
@@ -70,7 +67,7 @@ func parseArgsToRun(args []string) *Run {
 		"optional, path to output JSON dictionary file.")
 	flagSet.IntVar(&run.EmitOrig, "emitOrig", 0,
 		"when 1, original log lines are also emitted to stdout;\n"+
-			"       when 2, original log lines are joined into a single line;"+
+			"        when 2, original log lines are joined into a single line;"+
 			"       ")
 	flagSet.StringVar(&run.EmitParts, "emitParts", "FULL",
 		"optional, comma-separated list of parts to emit; valid values:\n"+
@@ -83,11 +80,6 @@ func parseArgsToRun(args []string) *Run {
 		"optional, comma-separated list of value types to emit; valid values:\n"+
 			"          INT    - emit integer values;\n"+
 			"          STRING - emit string values;\n"+
-			"       ")
-	flagSet.BoolVar(&run.Web, "web", false,
-		"optional, when true, run a web server instead of emitting to stdout.")
-	flagSet.StringVar(&run.WebBind, "webAddr", ":8911",
-		"optional, addr:port that web server should use to bind/listen to.\n"+
 			"       ")
 	flagSet.IntVar(&run.Workers, "workers", 1,
 		"optional, number of concurrent workers to use.\n"+

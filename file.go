@@ -121,10 +121,6 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 	if p.run.emitParts["FULL"] {
 		p.run.emitEntryFull(ts, module, level, p.dirBase, p.fname, p.fnameOut,
 			startOffset, startLine, lines)
-
-		if len(p.run.emitParts) <= 1 {
-			return
-		}
 	}
 
 	p.buf = p.buf[0:0]
