@@ -48,6 +48,7 @@ type Run struct {
 	Dirs []string // Directories to process.
 
 	Run string // Comma-separated list of the kind of run, like "stdout,web".
+	Tmp string // Tmp dir to use, otherwise use a system provided tmp dir.
 
 	WebBind   string // Host:Port that web server should use.
 	WebStatic string // Path to web static resources dir.
@@ -96,6 +97,8 @@ func parseArgsToRun(args []string) *Run {
 			"          stdout - emit processed logs to stdout;\n"+
 			"          web    - run a webserver.\n"+
 			"       ")
+	flagSet.StringVar(&run.Tmp, "tmp", "",
+		"optional, tmp dir to use, otherwise use a system auto-created tmp dir.")
 	flagSet.StringVar(&run.WebBind, "webAddr", ":8911",
 		"optional, addr:port when running a web server.\n"+
 			"       ")
