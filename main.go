@@ -45,8 +45,7 @@ type Run struct {
 	emitTypes map[string]bool // True when that value type should be emitted.
 
 	// fileProcessors is keyed by dirBase, then by file name.
-	fileProcessors      map[string]map[string]*fileProcessor
-	fileProcessorsTotal int
+	fileProcessors map[string]map[string]*fileProcessor
 
 	dict Dict
 
@@ -137,17 +136,19 @@ func (run *Run) process() {
 	}
 
 	for _, dir := range run.Dirs {
-		numFileProcessors, err := run.processDir(dir, workCh, maxFNameOutLen)
+		err := run.processDir(dir, workCh, maxFNameOutLen)
 		if err != nil {
 			log.Fatal(err)
 		}
-		run.fileProcessorsTotal += numFileProcessors
 	}
+
 	close(workCh)
 
-	for i := 0; i < run.fileProcessorsTotal; i++ {
-		fp := <-doneCh
-		fp.dict.AddTo(run.dict)
+	for _, fps := range run.fileProcessors {
+		for range fps {
+			fp := <-doneCh
+			fp.dict.AddTo(run.dict)
+		}
 	}
 
 	// -----------------------------------------------
@@ -169,12 +170,10 @@ func (run *Run) process() {
 }
 
 func (run *Run) processDir(dir string, workCh chan *fileProcessor,
-	maxFNameOutLen int) (int, error) {
-	numFileProcessors := 0
-
+	maxFNameOutLen int) error {
 	fileInfos, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	dirBase := path.Base(dir)
@@ -203,25 +202,12 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor,
 		}
 
 		workCh <- run.fileProcessors[dirBase][fname]
-
-		numFileProcessors++
 	}
 
-	return numFileProcessors, nil
+	return nil
 }
 
 // ------------------------------------------------------------
-
-func emitPrepCommon(module string, startOffset, startLine int) (string, string) {
-	if module == "" {
-		module = "?"
-	}
-
-	ol := fmt.Sprintf("%d:%d", startOffset, startLine)
-	ol = (ol + "                ")[0:12]
-
-	return module, ol
-}
 
 func (run *Run) emitEntryFull(timeStamp, module, level, dirBase, fname, fnameOut string,
 	startOffset, startLine int, lines []string) {
@@ -265,4 +251,15 @@ func (run *Run) emitEntryPart(timeStamp, module, level, dirBase, fname, fnameOut
 
 		run.m.Unlock()
 	}
+}
+
+func emitPrepCommon(module string, startOffset, startLine int) (string, string) {
+	if module == "" {
+		module = "?"
+	}
+
+	ol := fmt.Sprintf("%d:%d", startOffset, startLine)
+	ol = (ol + "                ")[0:12]
+
+	return module, ol
 }
