@@ -33,9 +33,9 @@ func main() {
 
 // Run is the main data struct that describes a processing run.
 type Run struct {
-	DictPath  string   // Path to optional dictionary file to output.
+	DictJson  string   // Path to optional JSON dictionary file to output.
 	EmitOrig  int      // When >0, also emit original log entries to stdout.
-	EmitParts string   // Comma-separated list of parts of data to emit (NAME, STRS, TAIL).
+	EmitParts string   // Comma-separated list of parts of data to emit (NAME, MIDS, ENDS).
 	EmitTypes string   // Comma-separated list of value types to emit (INT, STRING),
 	Dirs      []string // Directories to process.
 
@@ -63,23 +63,23 @@ func parseArgsToRun(args []string) *Run {
 
 	flagSet := flag.NewFlagSet(args[0], flag.ExitOnError)
 
-	flagSet.StringVar(&run.DictPath, "dictPath", "",
-		"optional, path to output JSON dictionary file.")
+	flagSet.StringVar(&run.DictJson, "dictJson", "",
+		"optional, path to JSON dictionary output file.")
 	flagSet.IntVar(&run.EmitOrig, "emitOrig", 0,
 		"when 1, original log lines are also emitted to stdout;\n"+
-			"        when 2, original log lines are joined into a single line;"+
+			"        when 2, original log lines are joined into a single line."+
 			"       ")
 	flagSet.StringVar(&run.EmitParts, "emitParts", "FULL",
 		"optional, comma-separated list of parts to emit; valid values:\n"+
 			"          FULL - emit full entry, with only light parsing;\n"+
 			"          NAME - emit name=value pairs;\n"+
-			"          STRS - emit strings between name=value pairs;\n"+
-			"          TAIL - emit string after last name=value pair;\n"+
+			"          MIDS - emit strings in between the name=value pairs;\n"+
+			"          ENDS - emit string after last name=value pair.\n"+
 			"       ")
 	flagSet.StringVar(&run.EmitTypes, "emitTypes", "INT",
 		"optional, comma-separated list of value types to emit; valid values:\n"+
-			"          INT    - emit integer values;\n"+
-			"          STRING - emit string values;\n"+
+			"          INT    - emit integer name=value pairs;\n"+
+			"          STRING - emit string name=value pairs.\n"+
 			"       ")
 	flagSet.IntVar(&run.Workers, "workers", 1,
 		"optional, number of concurrent workers to use.\n"+
@@ -152,10 +152,10 @@ func (run *Run) process() {
 
 	// -----------------------------------------------
 
-	if run.DictPath != "" {
-		fmt.Fprintf(os.Stderr, "emitting dictionary: %s\n", run.DictPath)
+	if run.DictJson != "" {
+		fmt.Fprintf(os.Stderr, "emitting JSON dictionary: %s\n", run.DictJson)
 
-		f, err := os.OpenFile(run.DictPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		f, err := os.OpenFile(run.DictJson, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			log.Fatal(err)
 		}

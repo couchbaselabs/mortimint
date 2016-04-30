@@ -248,7 +248,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int,
 		if p.run.emitTypes[tokStr] {
 			strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
 			p.run.emitEntryPart(ts, module, level, p.dirBase, p.fname, p.fnameOut,
-				startOffset, startLine, "STRS", path, "", "STRING", strs, true)
+				startOffset, startLine, "MIDS", path, "", "STRING", strs, true)
 
 			s = nil
 
@@ -275,7 +275,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int,
 
 	strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
 	p.run.emitEntryPart(ts, module, level, p.dirBase, p.fname, p.fnameOut,
-		startOffset, startLine, "TAIL", path, "", "STRING", strs, true)
+		startOffset, startLine, "ENDS", path, "", "STRING", strs, true)
 
 	return len(tokLits)
 }
