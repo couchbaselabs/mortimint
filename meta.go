@@ -48,6 +48,8 @@ type FileMeta struct {
 var ymd = `(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)`
 var hms = `T(?P<HH>\d\d):(?P<MM>\d\d):(?P<SS>\d\d)\.(?P<SSSS>\d+)`
 
+var re_ymd_hms = regexp.MustCompile(" " + ymd + hms + " ")
+
 var re_usual = regexp.MustCompile(`^` + ymd + hms + `-\S+\s(?P<level>\S+)\s`)
 
 var re_usual_ex = regexp.MustCompile(`^(?P<module>\w+)\s` + ymd + hms + `-\S+\s(?P<level>\S+)\s`)
@@ -57,8 +59,6 @@ var re_ns = regexp.MustCompile(`^\[(?P<module>\w+):(?P<level>\w+),` + ymd + hms 
 // ------------------------------------------------------------
 
 var stringify_replace = []byte(` "$0" `)
-
-var re_ymd_hms = regexp.MustCompile(" " + ymd + hms + " ")
 
 var hex = "[a-f0-9]"
 var hex6 = hex + hex + hex + hex + hex + hex

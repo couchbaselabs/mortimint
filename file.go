@@ -22,14 +22,15 @@ import (
 )
 
 type fileProcessor struct {
-	run      *Run
-	dir      string
-	dirBase  string
-	fname    string
-	fnameOut string
-	fmeta    FileMeta
-	dict     Dict
-	buf      []byte // Reusable buf to reduce garbage.
+	run       *Run
+	dir       string
+	dirBase   string
+	fname     string
+	fnameBase string // Ex: fname of "ns_server.fts.log" has fnameBase of "fts".
+	fnameOut  string // Space right padded "dirBase/fname", ready for logging.
+	fmeta     FileMeta
+	dict      Dict
+	buf       []byte // Reusable buf to reduce garbage.
 }
 
 // A tokLit associates a token and a literal string.
@@ -128,8 +129,8 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 	lines[0] = firstLine[matchIndex[1]:] // Strip off PrefixRE's match.
 
 	if p.run.emitParts["FULL"] {
-		p.run.emitEntryFull(ts, module, level, p.dirBase, p.fname, p.fnameOut,
-			startOffset, startLine, lines)
+		p.run.emitEntryFull(ts, module, level, p.dirBase,
+			p.fname, p.fnameBase, p.fnameOut, startOffset, startLine, lines)
 	}
 
 	p.buf = p.buf[0:0]
@@ -256,8 +257,9 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int,
 		tokStr := tokLit.tok.String()
 		if p.run.emitTypes[tokStr] {
 			strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-			p.run.emitEntryPart(ts, module, level, p.dirBase, p.fname, p.fnameOut,
-				startOffset, startLine, "MIDS", path, "", "STRING", strs, true)
+			p.run.emitEntryPart(ts, module, level, p.dirBase,
+				p.fname, p.fnameBase, p.fnameOut, startOffset, startLine,
+				"MIDS", path, "", "STRING", strs, true)
 
 			s = nil
 
@@ -273,7 +275,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int,
 				if name != "" {
 					p.dict.AddDictEntry(tokStr, name, tokLit.lit)
 					p.run.emitEntryPart(ts, module, level, p.dirBase,
-						p.fname, p.fnameOut, startOffset, startLine,
+						p.fname, p.fnameBase, p.fnameOut, startOffset, startLine,
 						"NAME", namePath, name, tokStr, tokLit.lit, false)
 				}
 			}
@@ -283,7 +285,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int,
 	}
 
 	strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-	p.run.emitEntryPart(ts, module, level, p.dirBase, p.fname, p.fnameOut,
+	p.run.emitEntryPart(ts, module, level, p.dirBase, p.fname, p.fnameBase, p.fnameOut,
 		startOffset, startLine, "ENDS", path, "", "STRING", strs, true)
 
 	return len(tokLits)

@@ -184,6 +184,8 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor,
 
 	for _, fileInfo := range fileInfos {
 		fname := fileInfo.Name()
+		fnameBaseParts := strings.Split(strings.Replace(fname, ".log", "", -1), ",")
+		fnameBase := fnameBaseParts[len(fnameBaseParts)-1]
 
 		fmeta, exists := FileMetas[fname]
 		if !exists || fmeta.Skip {
@@ -192,13 +194,14 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor,
 		}
 
 		run.fileProcessors[dirBase][fname] = &fileProcessor{
-			run:      run,
-			dir:      dir,
-			dirBase:  dirBase,
-			fname:    fname,
-			fnameOut: (dirBase + "/" + fname + spaces)[0:maxFNameOutLen],
-			fmeta:    fmeta,
-			dict:     Dict{},
+			run:       run,
+			dir:       dir,
+			dirBase:   dirBase,
+			fname:     fname,
+			fnameBase: fnameBase,
+			fnameOut:  (dirBase + "/" + fname + spaces)[0:maxFNameOutLen],
+			fmeta:     fmeta,
+			dict:      Dict{},
 		}
 
 		workCh <- run.fileProcessors[dirBase][fname]
@@ -209,11 +212,11 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor,
 
 // ------------------------------------------------------------
 
-func (run *Run) emitEntryFull(timeStamp, module, level, dirBase, fname, fnameOut string,
-	startOffset, startLine int, lines []string) {
+func (run *Run) emitEntryFull(timeStamp, module, level, dirBase,
+	fname, fnameBase, fnameOut string, startOffset, startLine int, lines []string) {
 	linesJoined := strings.Replace(strings.Join(lines, " "), "\n", " ", -1)
 
-	module, ol := emitPrepCommon(module, startOffset, startLine)
+	module, ol := emitPrepCommon(module, fnameBase, startOffset, startLine)
 
 	run.m.Lock()
 	fmt.Printf("  %s %s %s %s %s ", timeStamp, level, fnameOut, ol, module)
@@ -221,11 +224,11 @@ func (run *Run) emitEntryFull(timeStamp, module, level, dirBase, fname, fnameOut
 	run.m.Unlock()
 }
 
-func (run *Run) emitEntryPart(timeStamp, module, level, dirBase, fname, fnameOut string,
-	startOffset, startLine int, partKind string, namePath []string,
-	name, valType, val string, valQuoted bool) {
+func (run *Run) emitEntryPart(timeStamp, module, level, dirBase,
+	fname, fnameBase, fnameOut string, startOffset, startLine int,
+	partKind string, namePath []string, name, valType, val string, valQuoted bool) {
 	if run.emitParts[partKind] && len(val) > 0 {
-		module, ol := emitPrepCommon(module, startOffset, startLine)
+		module, ol := emitPrepCommon(module, fnameBase, startOffset, startLine)
 
 		if len(run.emitParts) <= 1 {
 			partKind = ""
@@ -253,9 +256,9 @@ func (run *Run) emitEntryPart(timeStamp, module, level, dirBase, fname, fnameOut
 	}
 }
 
-func emitPrepCommon(module string, startOffset, startLine int) (string, string) {
+func emitPrepCommon(module, fnameBase string, startOffset, startLine int) (string, string) {
 	if module == "" {
-		module = "?"
+		module = fnameBase
 	}
 
 	ol := fmt.Sprintf("%d:%d", startOffset, startLine)
