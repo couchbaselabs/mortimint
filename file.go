@@ -308,7 +308,7 @@ func cleanseName(name string) string {
 	if strings.IndexAny(name, "<>/ ") >= 0 ||
 		name == "true" || name == "false" ||
 		name == "ok" || name == "pid" || name == "uuid" ||
-		strings.HasPrefix(name, "0x") || int_re.MatchString(name) {
+		strings.HasPrefix(name, "0x") || re_int.MatchString(name) {
 		return ""
 	}
 	return name

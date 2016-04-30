@@ -58,16 +58,16 @@ var re_ns = regexp.MustCompile(`^\[(?P<module>\w+):(?P<level>\w+),` + ymd + hms 
 
 var stringify_replace = []byte(` "$0" `)
 
-var ymd_hms_re = regexp.MustCompile(" " + ymd + hms + " ")
+var re_ymd_hms = regexp.MustCompile(" " + ymd + hms + " ")
 
 var hex = "[a-f0-9]"
 var hex6 = hex + hex + hex + hex + hex + hex
 
-var uuid_re = regexp.MustCompile(" " + hex6 + "[a-f0-9-_]+ ")
+var re_uuid = regexp.MustCompile(" " + hex6 + "[a-f0-9-_]+ ")
 
-var addr_re = regexp.MustCompile(`(ns_\d+@)?\d+\.\d+\.\d+.\d+`)
+var re_addr = regexp.MustCompile(`(ns_\d+@)?\d+\.\d+\.\d+.\d+`)
 
-var int_re = regexp.MustCompile(`\d+`)
+var re_int = regexp.MustCompile(`\d+`)
 
 // ------------------------------------------------------------
 
@@ -109,13 +109,13 @@ var FileMetaNS = FileMeta{
 		s = ns_pid_re.ReplaceAll(s, stringify_replace)
 
 		// Convert `ns_1@172.23.105.216` into ` "ns_1@172.23.105.216" `
-		s = addr_re.ReplaceAll(s, stringify_replace)
+		s = re_addr.ReplaceAll(s, stringify_replace)
 
 		// Stringify dates.
-		s = ymd_hms_re.ReplaceAll(s, stringify_replace)
+		s = re_ymd_hms.ReplaceAll(s, stringify_replace)
 
 		// Stringify uuids.
-		s = uuid_re.ReplaceAll(s, stringify_replace)
+		s = re_uuid.ReplaceAll(s, stringify_replace)
 
 		return s
 	},
@@ -139,8 +139,8 @@ var FileMetas = map[string]FileMeta{ // Keep alphabetical...
 		HeaderSize: 4,
 		PrefixRE:   re_usual,
 		Cleanser: func(s []byte) []byte {
-			s = addr_re.ReplaceAll(s, stringify_replace)
-			s = uuid_re.ReplaceAll(s, stringify_replace)
+			s = re_addr.ReplaceAll(s, stringify_replace)
+			s = re_uuid.ReplaceAll(s, stringify_replace)
 			return s
 		},
 	},
