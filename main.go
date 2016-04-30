@@ -26,7 +26,12 @@ import (
 var ScannerBufferCapacity = 20 * 1024 * 1024
 
 func main() {
-	parseArgsToRun(os.Args).process()
+	run := parseArgsToRun(os.Args)
+	if run.Web {
+		run.web()
+	} else {
+		run.process()
+	}
 }
 
 // ------------------------------------------------------------
@@ -38,6 +43,10 @@ type Run struct {
 	EmitParts string   // Comma-separated list of parts of data to emit (NAME, MIDS, ENDS).
 	EmitTypes string   // Comma-separated list of value types to emit (INT, STRING),
 	Dirs      []string // Directories to process.
+
+	Web       bool   // When true, run a web server instead of emitting to stdout.
+	WebBind   string // Host:Port that web server should use.
+	WebStatic string // Path to web static resources dir.
 
 	Workers int // Size of workers pool for concurrency.
 
@@ -80,8 +89,16 @@ func parseArgsToRun(args []string) *Run {
 			"          INT    - emit integer name=value pairs;\n"+
 			"          STRING - emit string name=value pairs.\n"+
 			"       ")
+	flagSet.BoolVar(&run.Web, "web", false,
+		"optional, when true, run a web server instead of emitting to stdout.")
+	flagSet.StringVar(&run.WebBind, "webAddr", ":8911",
+		"optional, addr:port that web server should use to bind/listen to.\n"+
+			"       ")
+	flagSet.StringVar(&run.WebStatic, "webStatic", "./static",
+		"optional, directory of web static resources.\n"+
+			"       ")
 	flagSet.IntVar(&run.Workers, "workers", 1,
-		"optional, number of concurrent workers to use.\n"+
+		"optional, number of concurrent processing workers to use.\n"+
 			"       ")
 
 	flagSet.Parse(args[1:])
@@ -102,7 +119,9 @@ func parseArgsToRun(args []string) *Run {
 // ------------------------------------------------------------
 
 func (run *Run) process() {
+	numFiles := 0
 	maxFNameOutLen := 0
+
 	for _, dir := range run.Dirs {
 		fileInfos, err := ioutil.ReadDir(dir)
 		if err != nil {
@@ -112,6 +131,8 @@ func (run *Run) process() {
 		for _, fileInfo := range fileInfos {
 			fmeta, exists := FileMetas[fileInfo.Name()]
 			if exists && !fmeta.Skip {
+				numFiles += 1
+
 				x := len(path.Base(dir)) + len(fileInfo.Name()) + 1
 				if maxFNameOutLen < x {
 					maxFNameOutLen = x
@@ -120,7 +141,7 @@ func (run *Run) process() {
 		}
 	}
 
-	workCh := make(chan *fileProcessor, len(run.Dirs)*100)
+	workCh := make(chan *fileProcessor, numFiles)
 	doneCh := make(chan *fileProcessor)
 
 	for i := 0; i < run.Workers; i++ {
