@@ -230,7 +230,7 @@ func (run *Run) emitEntryFull(timeStamp, module, level, dirBase, fname, fnameOut
 	module, ol := emitPrepCommon(module, startOffset, startLine)
 
 	run.m.Lock()
-	fmt.Printf("  %s %s %s %s %s", timeStamp, level, fnameOut, ol, module)
+	fmt.Printf("  %s %s %s %s %s ", timeStamp, level, fnameOut, ol, module)
 	fmt.Println(linesJoined)
 	run.m.Unlock()
 }
