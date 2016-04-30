@@ -34,7 +34,7 @@ func main() {
 // Run is the main data struct that describes a processing run.
 type Run struct {
 	DictPath  string   // Path to optional dictionary file to output.
-	EmitOrig  bool     // When true, also emit original log entries to stdout.
+	EmitOrig  int      // When >0, also emit original log entries to stdout.
 	EmitParts string   // Comma-separated list of parts of data to emit (NAME, STRS, TAIL).
 	EmitTypes string   // Comma-separated list of value types to emit (INT, STRING),
 	Dirs      []string // Directories to process.
@@ -68,8 +68,10 @@ func parseArgsToRun(args []string) *Run {
 
 	flagSet.StringVar(&run.DictPath, "dictPath", "",
 		"optional, path to output JSON dictionary file.")
-	flagSet.BoolVar(&run.EmitOrig, "emitOrig", false,
-		"when true, the original log lines are also emitted to stdout.")
+	flagSet.IntVar(&run.EmitOrig, "emitOrig", 0,
+		"when 1, original log lines are also emitted to stdout;\n"+
+			"       when 2, original log lines are joined into a single line;"+
+			"       ")
 	flagSet.StringVar(&run.EmitParts, "emitParts", "NAME",
 		"optional, comma-separated list of parts to emit; valid values:\n"+
 			"          NAME - emit name=value pairs;\n"+
@@ -116,9 +118,12 @@ func (run *Run) process() {
 		}
 
 		for _, fileInfo := range fileInfos {
-			x := len(path.Base(dir)) + len(fileInfo.Name()) + 1
-			if maxFNameOutLen < x {
-				maxFNameOutLen = x
+			fmeta, exists := FileMetas[fileInfo.Name()]
+			if exists && !fmeta.Skip {
+				x := len(path.Base(dir)) + len(fileInfo.Name()) + 1
+				if maxFNameOutLen < x {
+					maxFNameOutLen = x
+				}
 			}
 		}
 	}
@@ -229,14 +234,20 @@ func (run *Run) emit(timeStamp, module, level, dirBase, fname, fnameOut string,
 			module = "?"
 		}
 
+		if len(run.emitParts) <= 1 {
+			partKind = ""
+		} else if partKind != "" {
+			partKind = partKind + " "
+		}
+
 		run.m.Lock()
 
 		if valQuoted {
-			fmt.Printf("  %s %s %s %s %s %s %+v %s= %s %q\n",
+			fmt.Printf("  %s %s %s %s %s%s %+v %s= %s %q\n",
 				timeStamp, level, fnameOut, ol,
 				partKind, module, namePath, name, valType, val)
 		} else {
-			fmt.Printf("  %s %s %s %s %s %s %+v %s= %s %s\n",
+			fmt.Printf("  %s %s %s %s %s%s %+v %s= %s %s\n",
 				timeStamp, level, fnameOut, ol,
 				partKind, module, namePath, name, valType, val)
 		}

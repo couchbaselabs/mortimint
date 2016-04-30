@@ -82,10 +82,17 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 		return
 	}
 
-	if p.run.EmitOrig {
+	if p.run.EmitOrig == 1 {
+		p.run.m.Lock()
 		for _, line := range lines {
 			fmt.Println(line)
 		}
+		p.run.m.Unlock()
+	} else if p.run.EmitOrig == 2 {
+		linesJoined := strings.Replace(strings.Join(lines, "\n"), "\n", " ", -1)
+		p.run.m.Lock()
+		fmt.Println(linesJoined)
+		p.run.m.Unlock()
 	}
 
 	firstLine := lines[0]
