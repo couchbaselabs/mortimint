@@ -1,3 +1,14 @@
+//  Copyright (c) 2016 Couchbase, Inc.
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the
+//  License. You may obtain a copy of the License at
+//    http://www.apache.org/licenses/LICENSE-2.0
+//  Unless required by applicable law or agreed to in writing,
+//  software distributed under the License is distributed on an "AS
+//  IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+//  express or implied. See the License for the specific language
+//  governing permissions and limitations under the License.
+
 package main
 
 import (
@@ -82,14 +93,12 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 		return
 	}
 
-	if p.run.EmitOrig == 1 {
-		p.run.m.Lock()
-		for _, line := range lines {
-			fmt.Println(line)
+	if p.run.EmitOrig >= 1 {
+		linesJoined := strings.Join(lines, "\n")
+		if p.run.EmitOrig >= 2 {
+			linesJoined = strings.Replace(linesJoined, "\n", " ", -1)
 		}
-		p.run.m.Unlock()
-	} else if p.run.EmitOrig == 2 {
-		linesJoined := strings.Replace(strings.Join(lines, "\n"), "\n", " ", -1)
+
 		p.run.m.Lock()
 		fmt.Println(linesJoined)
 		p.run.m.Unlock()

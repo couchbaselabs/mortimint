@@ -211,7 +211,7 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor,
 
 func (run *Run) emitEntryFull(timeStamp, module, level, dirBase, fname, fnameOut string,
 	startOffset, startLine int, lines []string) {
-	linesJoined := strings.Replace(strings.Join(lines, "\n"), "\n", " ", -1)
+	linesJoined := strings.Replace(strings.Join(lines, " "), "\n", " ", -1)
 
 	module, ol := emitPrepCommon(module, startOffset, startLine)
 
