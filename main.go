@@ -64,9 +64,9 @@ func parseArgsToRun(args []string) *Run {
 
 	flagSet.StringVar(&run.DictJson, "dictJson", "",
 		"optional, path to JSON dictionary output file.")
-	flagSet.StringVar(&run.EmitOrig, "emitOrig", "1line",
+	flagSet.StringVar(&run.EmitOrig, "emitOrig", "",
 		"when not the empty string (\"\"), source log lines are emitted to stdout;\n"+
-			"        when \"1line\", original log lines are joined into a single line.\n"+
+			"        when \"1line\", source log lines are joined into a single line.\n"+
 			"       ")
 	flagSet.StringVar(&run.EmitParts, "emitParts", "FULL",
 		"optional, comma-separated list of parts to emit; valid values:\n"+
