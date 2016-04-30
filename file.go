@@ -118,6 +118,15 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 
 	lines[0] = firstLine[matchIndex[1]:] // Strip off PrefixRE's match.
 
+	if p.run.emitParts["FULL"] {
+		p.run.emitEntryFull(ts, module, level, p.dirBase, p.fname, p.fnameOut,
+			startOffset, startLine, lines)
+
+		if len(p.run.emitParts) <= 1 {
+			return
+		}
+	}
+
 	p.buf = p.buf[0:0]
 	for _, line := range lines {
 		p.buf = append(p.buf, []byte(line)...)
@@ -226,7 +235,7 @@ func (p *fileProcessor) processEntryTokens(startOffset, startLine int,
 	p.emitTokLits(startOffset, startLine, ts, module, level, path, tokLits, emitted)
 }
 
-// emitTokLits invokes run.emit() on the tokens that haven't been
+// emitTokLits invokes run.emitEntryPart() on the tokens that haven't been
 // emitted yet, along with heuristic preprocessing & cleanup, too.
 func (p *fileProcessor) emitTokLits(startOffset, startLine int,
 	ts, module, level string, path []string, tokLits []tokLit, startAt int) int {
@@ -242,7 +251,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int,
 		tokStr := tokLit.tok.String()
 		if p.run.emitTypes[tokStr] {
 			strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-			p.run.emit(ts, module, level, p.dirBase, p.fname, p.fnameOut,
+			p.run.emitEntryPart(ts, module, level, p.dirBase, p.fname, p.fnameOut,
 				startOffset, startLine, "STRS", path, "", "STRING", strs, true)
 
 			s = nil
@@ -258,9 +267,9 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int,
 
 				if name != "" {
 					p.dict.AddDictEntry(tokStr, name, tokLit.lit)
-					p.run.emit(ts, module, level, p.dirBase, p.fname, p.fnameOut,
-						startOffset, startLine, "NAME", namePath,
-						name, tokStr, tokLit.lit, false)
+					p.run.emitEntryPart(ts, module, level, p.dirBase,
+						p.fname, p.fnameOut, startOffset, startLine,
+						"NAME", namePath, name, tokStr, tokLit.lit, false)
 				}
 			}
 		} else {
@@ -269,7 +278,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int,
 	}
 
 	strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-	p.run.emit(ts, module, level, p.dirBase, p.fname, p.fnameOut,
+	p.run.emitEntryPart(ts, module, level, p.dirBase, p.fname, p.fnameOut,
 		startOffset, startLine, "TAIL", path, "", "STRING", strs, true)
 
 	return len(tokLits)

@@ -72,8 +72,9 @@ func parseArgsToRun(args []string) *Run {
 		"when 1, original log lines are also emitted to stdout;\n"+
 			"       when 2, original log lines are joined into a single line;"+
 			"       ")
-	flagSet.StringVar(&run.EmitParts, "emitParts", "NAME",
+	flagSet.StringVar(&run.EmitParts, "emitParts", "FULL",
 		"optional, comma-separated list of parts to emit; valid values:\n"+
+			"          FULL - emit full entry, with only light parsing;\n"+
 			"          NAME - emit name=value pairs;\n"+
 			"          STRS - emit strings between name=value pairs;\n"+
 			"          TAIL - emit string after last name=value pair;\n"+
@@ -219,25 +220,43 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor,
 
 // ------------------------------------------------------------
 
-func (run *Run) emit(timeStamp, module, level, dirBase, fname, fnameOut string,
+func emitPrepCommon(module string, startOffset, startLine int) (string, string) {
+	if module == "" {
+		module = "?"
+	}
+
+	ol := fmt.Sprintf("%d:%d", startOffset, startLine)
+	ol = (ol + "                ")[0:12]
+
+	return module, ol
+}
+
+func (run *Run) emitEntryFull(timeStamp, module, level, dirBase, fname, fnameOut string,
+	startOffset, startLine int, lines []string) {
+	linesJoined := strings.Replace(strings.Join(lines, "\n"), "\n", " ", -1)
+
+	module, ol := emitPrepCommon(module, startOffset, startLine)
+
+	run.m.Lock()
+	fmt.Printf("  %s %s %s %s %s", timeStamp, level, fnameOut, ol, module)
+	fmt.Println(linesJoined)
+	run.m.Unlock()
+}
+
+func (run *Run) emitEntryPart(timeStamp, module, level, dirBase, fname, fnameOut string,
 	startOffset, startLine int, partKind string, namePath []string,
 	name, valType, val string, valQuoted bool) {
 	if run.emitParts[partKind] && len(val) > 0 {
-		if name != "" {
-			name = name + " "
-		}
-
-		ol := fmt.Sprintf("%d:%d", startOffset, startLine)
-		ol = (ol + "                ")[0:12]
-
-		if module == "" {
-			module = "?"
-		}
+		module, ol := emitPrepCommon(module, startOffset, startLine)
 
 		if len(run.emitParts) <= 1 {
 			partKind = ""
 		} else if partKind != "" {
 			partKind = partKind + " "
+		}
+
+		if name != "" {
+			name = name + " "
 		}
 
 		run.m.Lock()
