@@ -34,7 +34,7 @@ func main() {
 // Run is the main data struct that describes a processing run.
 type Run struct {
 	DictJson  string   // Path to optional JSON dictionary file to output.
-	EmitOrig  int      // When >0, also emit original log entries to stdout.
+	EmitOrig  string   // When non-"", original log entries will be emitted to stdout.
 	EmitParts string   // Comma-separated list of parts of data to emit (NAME, MIDS, ENDS).
 	EmitTypes string   // Comma-separated list of value types to emit (INT, STRING),
 	Dirs      []string // Directories to process.
@@ -64,9 +64,9 @@ func parseArgsToRun(args []string) *Run {
 
 	flagSet.StringVar(&run.DictJson, "dictJson", "",
 		"optional, path to JSON dictionary output file.")
-	flagSet.IntVar(&run.EmitOrig, "emitOrig", 0,
-		"when 1, original log lines are also emitted to stdout;\n"+
-			"        when 2, original log lines are joined into a single line."+
+	flagSet.StringVar(&run.EmitOrig, "emitOrig", "1line",
+		"when not the empty string (\"\"), source log lines are emitted to stdout;\n"+
+			"        when \"1line\", original log lines are joined into a single line.\n"+
 			"       ")
 	flagSet.StringVar(&run.EmitParts, "emitParts", "FULL",
 		"optional, comma-separated list of parts to emit; valid values:\n"+

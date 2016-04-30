@@ -94,9 +94,9 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 		return
 	}
 
-	if p.run.EmitOrig >= 1 {
+	if p.run.EmitOrig != "" {
 		linesJoined := strings.Join(lines, "\n")
-		if p.run.EmitOrig >= 2 {
+		if p.run.EmitOrig == "1line" {
 			linesJoined = strings.Replace(linesJoined, "\n", " ", -1)
 		}
 
