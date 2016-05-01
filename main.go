@@ -315,7 +315,7 @@ func (run *Run) emitEntryPart(ts, module, level, dirBase,
 
 func (run *Run) emitProgressLocked() {
 	run.progress++
-	if run.ProgressEvery > 0 && (run.progress % run.ProgressEvery) == 0 {
+	if run.ProgressEvery > 0 && (run.progress%run.ProgressEvery) == 0 {
 		fmt.Fprint(os.Stderr, ".")
 	}
 }
