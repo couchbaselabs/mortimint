@@ -188,11 +188,9 @@ func (run *Run) process(emitWriter io.Writer) {
 
 	close(workCh)
 
-	for _, fps := range run.fileProcessors {
-		for range fps {
-			fp := <-doneCh
-			fp.dict.AddTo(run.dict)
-		}
+	for i := 0; i < numFiles; i++ {
+		fp := <-doneCh
+		fp.dict.AddTo(run.dict)
 	}
 
 	// -----------------------------------------------
@@ -262,8 +260,14 @@ func (run *Run) emitEntryFull(ts, module, level, dirBase,
 
 	module, ol := emitPrepCommon(module, fnameBase, startOffset, startLine)
 
+	partKind := ""
+	if len(run.emitParts) > 1 {
+		partKind = "FULL "
+	}
+
 	run.m.Lock()
-	fmt.Fprintf(run.emitWriter, "  %s %s %s %s %s ", ts, level, fnameOut, ol, module)
+	fmt.Fprintf(run.emitWriter, "  %s %s %s %s %s%s ",
+		ts, level, fnameOut, ol, partKind, module)
 	fmt.Fprintln(run.emitWriter, linesJoined)
 	run.m.Unlock()
 }
