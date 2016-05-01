@@ -34,6 +34,10 @@ func (run *Run) web() {
 	fmt.Fprintf(os.Stderr, "emitting: emit.dict: %s\n", run.EmitDict)
 	fmt.Fprintf(os.Stderr, "emitting: emit.log: %s\n", emitLogPath)
 
+	if run.ProgressEvery == 0 {
+		run.ProgressEvery = 10000
+	}
+
 	go func() {
 		run.process(emitLogFile)
 		emitLogFile.Close()

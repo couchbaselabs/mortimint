@@ -55,6 +55,8 @@ type Run struct {
 
 	Dirs []string // Directories to process.
 
+	ProgressEvery int
+
 	Run string // Comma-separated list of the kind of run, like "stdout,web".
 	Tmp string // Tmp dir to use, otherwise use a system provided tmp dir.
 
@@ -75,6 +77,8 @@ type Run struct {
 	dict Dict
 
 	m sync.Mutex
+
+	progress int
 }
 
 func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
@@ -102,6 +106,8 @@ func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 			"          INT    - emit integer name=value pairs;\n"+
 			"          STRING - emit string name=value pairs.\n"+
 			"       ")
+	flagSet.IntVar(&run.ProgressEvery, "progressEvery", 0,
+		"optional, when > 0, emit a progress dot to stderr after modulo this many emits.")
 	flagSet.StringVar(&run.Run, "run", "stdout",
 		"optional, comma-separated list of the kind of run; supported values:\n"+
 			"          stdout - emit processed logs to stdout;\n"+
@@ -269,6 +275,7 @@ func (run *Run) emitEntryFull(ts, module, level, dirBase,
 	fmt.Fprintf(run.emitWriter, "  %s %s %s %s %s%s ",
 		ts, level, fnameOut, ol, partKind, module)
 	fmt.Fprintln(run.emitWriter, linesJoined)
+	run.emitProgressLocked()
 	run.m.Unlock()
 }
 
@@ -300,7 +307,16 @@ func (run *Run) emitEntryPart(ts, module, level, dirBase,
 				namePath, name, valType, val)
 		}
 
+		run.emitProgressLocked()
+
 		run.m.Unlock()
+	}
+}
+
+func (run *Run) emitProgressLocked() {
+	run.progress++
+	if run.ProgressEvery > 0 && (run.progress % run.ProgressEvery) == 0 {
+		fmt.Fprint(os.Stderr, ".")
 	}
 }
 
