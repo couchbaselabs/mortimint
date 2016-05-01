@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -37,7 +38,7 @@ func main() {
 	if run.run["web"] {
 		run.web()
 	} else if run.run["stdout"] {
-		run.process()
+		run.process(os.Stdout)
 	} else {
 		log.Fatalf("unknown kind of run: %s", run.Run)
 	}
@@ -69,12 +70,14 @@ type Run struct {
 	// fileProcessors is keyed by dirBase, then by file name.
 	fileProcessors map[string]map[string]*fileProcessor
 
+	emitWriter io.Writer
+
 	dict Dict
 
 	m sync.Mutex
 }
 
-func parseArgsToRun(args []string) (*Run, *flag.FlagSet){
+func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 	run := &Run{
 		fileProcessors: map[string]map[string]*fileProcessor{},
 		dict:           Dict{},
@@ -136,7 +139,9 @@ func csvToMap(csv string, m map[string]bool) map[string]bool {
 
 // ------------------------------------------------------------
 
-func (run *Run) process() {
+func (run *Run) process(emitWriter io.Writer) {
+	run.emitWriter = emitWriter
+
 	numFiles := 0
 	maxFNameOutLen := 0
 
@@ -251,19 +256,19 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor,
 
 // ------------------------------------------------------------
 
-func (run *Run) emitEntryFull(timeStamp, module, level, dirBase,
+func (run *Run) emitEntryFull(ts, module, level, dirBase,
 	fname, fnameBase, fnameOut string, startOffset, startLine int, lines []string) {
 	linesJoined := strings.Replace(strings.Join(lines, " "), "\n", " ", -1)
 
 	module, ol := emitPrepCommon(module, fnameBase, startOffset, startLine)
 
 	run.m.Lock()
-	fmt.Printf("  %s %s %s %s %s ", timeStamp, level, fnameOut, ol, module)
-	fmt.Println(linesJoined)
+	fmt.Fprintf(run.emitWriter, "  %s %s %s %s %s ", ts, level, fnameOut, ol, module)
+	fmt.Fprintln(run.emitWriter, linesJoined)
 	run.m.Unlock()
 }
 
-func (run *Run) emitEntryPart(timeStamp, module, level, dirBase,
+func (run *Run) emitEntryPart(ts, module, level, dirBase,
 	fname, fnameBase, fnameOut string, startOffset, startLine int,
 	partKind string, namePath []string, name, valType, val string, valQuoted bool) {
 	if run.emitParts[partKind] && len(val) > 0 {
@@ -282,13 +287,13 @@ func (run *Run) emitEntryPart(timeStamp, module, level, dirBase,
 		run.m.Lock()
 
 		if valQuoted {
-			fmt.Printf("  %s %s %s %s %s%s %+v %s= %s %q\n",
-				timeStamp, level, fnameOut, ol,
-				partKind, module, namePath, name, valType, val)
+			fmt.Fprintf(run.emitWriter, "  %s %s %s %s %s%s %+v %s= %s %q\n",
+				ts, level, fnameOut, ol, partKind, module,
+				namePath, name, valType, val)
 		} else {
-			fmt.Printf("  %s %s %s %s %s%s %+v %s= %s %s\n",
-				timeStamp, level, fnameOut, ol,
-				partKind, module, namePath, name, valType, val)
+			fmt.Fprintf(run.emitWriter, "  %s %s %s %s %s%s %+v %s= %s %s\n",
+				ts, level, fnameOut, ol, partKind, module,
+				namePath, name, valType, val)
 		}
 
 		run.m.Unlock()

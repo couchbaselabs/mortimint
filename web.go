@@ -9,7 +9,7 @@ import (
 )
 
 func (run *Run) web() {
-	go run.process()
+	go run.process(os.Stdout)
 
 	err := http.ListenAndServe(run.WebBind, router(run.WebStatic))
 	if err != nil {
