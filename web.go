@@ -48,7 +48,7 @@ func (run *Run) web() {
 	}()
 
 	go func() {
-		err := http.ListenAndServe(run.WebBind, router(run.WebStatic))
+		err := http.ListenAndServe(run.WebBind, run.webRouter())
 		if err != nil {
 			log.Fatalf("error: http listen/serve err: %v", err)
 		}
@@ -57,13 +57,22 @@ func (run *Run) web() {
 	ioutil.ReadAll(os.Stdin)
 }
 
-func router(staticPath string) *mux.Router {
-	fi, err := os.Stat(staticPath)
+func (run *Run) webRouter() *mux.Router {
+	fi, err := os.Stat(run.WebStatic)
 	if err != nil || !fi.Mode().IsDir() {
-		log.Fatalf("error: staticPath is not a dir: %s, err: %v", staticPath, err)
+		log.Fatal(err)
+		return nil
 	}
 
 	r := mux.NewRouter()
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir(staticPath)))
+
+	r.PathPrefix("/emit/").
+		Handler(http.StripPrefix("/emit/",
+			http.FileServer(http.Dir(run.Tmp))))
+
+	r.PathPrefix("/").
+		Handler(http.StripPrefix("/",
+			http.FileServer(http.Dir(run.WebStatic))))
+
 	return r
 }
