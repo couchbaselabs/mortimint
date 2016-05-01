@@ -26,13 +26,20 @@ import (
 var ScannerBufferCapacity = 20 * 1024 * 1024
 
 func main() {
-	run := parseArgsToRun(os.Args)
+	run, flagSet := parseArgsToRun(os.Args)
+
+	fmt.Fprintf(os.Stderr, "%s\n", os.Args[0])
+
+	flagSet.VisitAll(func(f *flag.Flag) {
+		fmt.Fprintf(os.Stderr, "  -%s=%s\n", f.Name, f.Value)
+	})
+
 	if run.run["web"] {
-		fmt.Fprintf(os.Stderr, "running web\n")
 		run.web()
 	} else if run.run["stdout"] {
-		fmt.Fprintf(os.Stderr, "running stdout\n")
 		run.process()
+	} else {
+		log.Fatalf("unknown kind of run: %s", run.Run)
 	}
 }
 
@@ -67,7 +74,7 @@ type Run struct {
 	m sync.Mutex
 }
 
-func parseArgsToRun(args []string) *Run {
+func parseArgsToRun(args []string) (*Run, *flag.FlagSet){
 	run := &Run{
 		fileProcessors: map[string]map[string]*fileProcessor{},
 		dict:           Dict{},
@@ -117,7 +124,7 @@ func parseArgsToRun(args []string) *Run {
 	run.emitTypes = csvToMap(run.EmitTypes, map[string]bool{})
 	run.run = csvToMap(run.Run, map[string]bool{})
 
-	return run
+	return run, flagSet
 }
 
 func csvToMap(csv string, m map[string]bool) map[string]bool {
