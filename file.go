@@ -45,7 +45,7 @@ type tokLit struct {
 func (p *fileProcessor) process() error {
 	fmt.Fprintf(os.Stderr, "processing %s/%s\n", p.dirBase, p.fname)
 
-	f, err := os.Open(p.dir + "/" + p.fname)
+	f, err := os.Open(p.dir + string(os.PathSeparator) + p.fname)
 	if err != nil {
 		return err
 	}
@@ -147,8 +147,8 @@ func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string)
 
 	fset := token.NewFileSet()
 
-	s.Init(fset.AddFile(p.dir+"/"+p.fname, fset.Base(),
-		len(p.buf)), p.buf, nil /* No error handler. */, 0)
+	s.Init(fset.AddFile(p.dir+string(os.PathSeparator)+p.fname,
+		fset.Base(), len(p.buf)), p.buf, nil /* No error handler. */, 0)
 
 	p.processEntryTokens(startOffset, startLine, ts, module, level, &s,
 		make([]string, 0, 20))
