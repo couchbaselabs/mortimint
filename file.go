@@ -56,19 +56,19 @@ func (p *fileProcessor) process() error {
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(nil, ScannerBufferCapacity)
 
-	var currOffset int
-	var currLine int
+	var currOffset int64
+	var currLine int64
 
-	var entryStartOffset int
-	var entryStartLine int
+	var entryStartOffset int64
+	var entryStartLine int64
 	var entryLines []string
 
 	for scanner.Scan() {
 		lineStr := scanner.Text()
 
 		currLine++
-		if currLine <= p.fmeta.HeaderSize { // Skip header.
-			currOffset += len(lineStr) + 1
+		if currLine <= int64(p.fmeta.HeaderSize) { // Skip header.
+			currOffset += int64(len(lineStr) + 1)
 			continue
 		}
 
@@ -81,7 +81,7 @@ func (p *fileProcessor) process() error {
 		}
 
 		entryLines = append(entryLines, lineStr)
-		currOffset += len(lineStr) + 1
+		currOffset += int64(len(lineStr) + 1)
 	}
 
 	p.processEntry(entryStartOffset, entryStartLine, entryLines)
@@ -89,7 +89,7 @@ func (p *fileProcessor) process() error {
 	return scanner.Err()
 }
 
-func (p *fileProcessor) processEntry(startOffset, startLine int, lines []string) {
+func (p *fileProcessor) processEntry(startOffset, startLine int64, lines []string) {
 	if startLine <= 0 || len(lines) <= 0 {
 		return
 	}
@@ -186,7 +186,7 @@ var skipToken = map[token.Token]bool{
 	token.SHR: true, // >>
 }
 
-func (p *fileProcessor) processEntryTokens(startOffset, startLine int,
+func (p *fileProcessor) processEntryTokens(startOffset, startLine int64,
 	ts, module, level string, s *scanner.Scanner, path []string) {
 	var tokLits []tokLit
 	var emitted int
@@ -243,7 +243,7 @@ func (p *fileProcessor) processEntryTokens(startOffset, startLine int,
 
 // emitTokLits invokes run.emitEntryPart() on the tokens that haven't been
 // emitted yet, along with heuristic preprocessing & cleanup, too.
-func (p *fileProcessor) emitTokLits(startOffset, startLine int,
+func (p *fileProcessor) emitTokLits(startOffset, startLine int64,
 	ts, module, level string, path []string, tokLits []tokLit, startAt int) int {
 	var s []string
 

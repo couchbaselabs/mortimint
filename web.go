@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -66,6 +67,23 @@ func (run *Run) webRouter() *mux.Router {
 	}
 
 	r := mux.NewRouter()
+
+	r.HandleFunc("/progress",
+		func(w http.ResponseWriter, r *http.Request) {
+			run.m.Lock()
+			json.NewEncoder(w).Encode(struct {
+				EmitDone     bool
+				EmitProgress int64
+				FileSizes    map[string]map[string]int64
+				FileProgress map[string]map[string]int64
+			}{
+				run.emitDone,
+				run.emitProgress,
+				run.fileSizes,
+				run.fileProgress,
+			})
+			run.m.Unlock()
+		})
 
 	r.PathPrefix("/emit/").
 		Handler(http.StripPrefix("/emit/",
