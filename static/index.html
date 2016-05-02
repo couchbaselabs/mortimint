@@ -13,6 +13,29 @@
   <br/>
   <a href="/emit/emit.log">emit.log</a>
 </div>
+<pre class="progress">...</pre>
+<script>
+function showProgress() {
+  fetch('./progress')
+    .then(function(response) {
+      if (response.status == 200) {
+        // Examine the text in the response
+        response.json().then(function(data) {
+          document.getElementsByClassName('progress')[0].innerText =
+            JSON.stringify(data, null, 2);
+          if (!data.EmitDone) {
+            setTimeout(showProgress, 1500);
+          }
+        });
+      }
+    })
+    .catch(function(err) {
+      document.getElementsByClassName('progress')[0].innerText = err;
+      console.log('fetch error :-S', err);
+    });
+}
+showProgress();
+</script>
 <div class="tall">
 </div>
 <div>
