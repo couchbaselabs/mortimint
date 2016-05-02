@@ -148,36 +148,9 @@ func csvToMap(csv string, m map[string]bool) map[string]bool {
 // ------------------------------------------------------------
 
 func (run *Run) process(emitWriter io.Writer) {
+	numFiles, maxFNameOutLen := run.processInit()
+
 	run.emitWriter = emitWriter
-
-	numFiles := 0
-	maxFNameOutLen := 0
-
-	for _, dir := range run.Dirs {
-		fileInfos, err := ioutil.ReadDir(dir)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		dirBase := path.Base(dir)
-
-		for _, fileInfo := range fileInfos {
-			fmeta, exists := FileMetas[fileInfo.Name()]
-			if exists && !fmeta.Skip {
-				numFiles += 1
-
-				x := len(dirBase) + len(fileInfo.Name()) + 1
-				if maxFNameOutLen < x {
-					maxFNameOutLen = x
-				}
-
-				if run.fileSizes[dirBase] == nil {
-					run.fileSizes[dirBase] = map[string]int64{}
-				}
-				run.fileSizes[dirBase][fileInfo.Name()] = fileInfo.Size()
-			}
-		}
-	}
 
 	workCh := make(chan *fileProcessor, numFiles)
 	doneCh := make(chan *fileProcessor)
@@ -208,12 +181,45 @@ func (run *Run) process(emitWriter io.Writer) {
 		fp.dict.AddTo(run.dict)
 	}
 
-	// -----------------------------------------------
+	run.processEmitDict()
+}
 
+func (run *Run) processInit() (numFiles int, maxFNameOutLen int) {
+	for _, dir := range run.Dirs {
+		fileInfos, err := ioutil.ReadDir(dir)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		dirBase := path.Base(dir)
+
+		for _, fileInfo := range fileInfos {
+			fmeta, exists := FileMetas[fileInfo.Name()]
+			if exists && !fmeta.Skip {
+				numFiles += 1
+
+				x := len(dirBase) + len(fileInfo.Name()) + 1
+				if maxFNameOutLen < x {
+					maxFNameOutLen = x
+				}
+
+				if run.fileSizes[dirBase] == nil {
+					run.fileSizes[dirBase] = map[string]int64{}
+				}
+				run.fileSizes[dirBase][fileInfo.Name()] = fileInfo.Size()
+			}
+		}
+	}
+
+	return numFiles, maxFNameOutLen
+}
+
+func (run *Run) processEmitDict() {
 	if run.EmitDict != "" {
 		fmt.Fprintf(os.Stderr, "emitting JSON dictionary: %s\n", run.EmitDict)
 
-		f, err := os.OpenFile(run.EmitDict, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		f, err := os.OpenFile(run.EmitDict,
+			os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			log.Fatal(err)
 		}
