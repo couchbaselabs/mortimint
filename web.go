@@ -26,7 +26,8 @@ func (run *Run) web() {
 	}
 
 	emitLogPath := run.Tmp + string(os.PathSeparator) + "emit.log"
-	emitLogFile, err := os.OpenFile(emitLogPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	emitLogFile, err := os.OpenFile(emitLogPath,
+		os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}

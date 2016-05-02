@@ -71,6 +71,7 @@ type Run struct {
 
 	// fileProcessors is keyed by dirBase, then by file name.
 	fileProcessors map[string]map[string]*fileProcessor
+	fileSizes      map[string]map[string]int64
 
 	emitWriter io.Writer
 
@@ -84,6 +85,7 @@ type Run struct {
 func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 	run := &Run{
 		fileProcessors: map[string]map[string]*fileProcessor{},
+		fileSizes:      map[string]map[string]int64{},
 		dict:           Dict{},
 	}
 
@@ -157,15 +159,22 @@ func (run *Run) process(emitWriter io.Writer) {
 			log.Fatal(err)
 		}
 
+		dirBase := path.Base(dir)
+
 		for _, fileInfo := range fileInfos {
 			fmeta, exists := FileMetas[fileInfo.Name()]
 			if exists && !fmeta.Skip {
 				numFiles += 1
 
-				x := len(path.Base(dir)) + len(fileInfo.Name()) + 1
+				x := len(dirBase) + len(fileInfo.Name()) + 1
 				if maxFNameOutLen < x {
 					maxFNameOutLen = x
 				}
+
+				if run.fileSizes[dirBase] == nil {
+					run.fileSizes[dirBase] = map[string]int64{}
+				}
+				run.fileSizes[dirBase][fileInfo.Name()] = fileInfo.Size()
 			}
 		}
 	}
