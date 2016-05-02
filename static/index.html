@@ -22,9 +22,21 @@ function showProgress() {
       if (response.status == 200) {
         // Examine the text in the response
         response.json().then(function(data) {
-          document.getElementsByClassName('progress')[0].innerText =
-            JSON.stringify(data, null, 2);
-          if (!data.EmitDone) {
+          var pcts = {};
+          for (var dir in data.FileSizes) {
+            for (var fname in data.FileSizes[dir]) {
+              var size = data.FileSizes[dir][fname];
+              var curr = _.get(data.FileProgress, [dir, fname], 0);
+              _.set(pcts, [dir, fname], curr / size);
+            }
+          }
+
+          var progressEl = document.getElementsByClassName('progress')[0];
+          progressEl.innerText = JSON.stringify(pcts, null, 2);
+
+          if (data.EmitDone) {
+            progressEl.className += " done";
+          } else {
             setTimeout(showProgress, 1500);
           }
         });
