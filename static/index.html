@@ -14,25 +14,33 @@
   <br/>
   <a href="/emit/emit.log">emit.log</a>
 </div>
-<pre class="progress">...</pre>
+<div class="progress">...</div>
 <script>
-function showProgress() {
+var barTmpl = _.template(
+  '<div class="bar">'+
+    '<div class="barName"><%= dir %>/<%= fname %></div>'+
+    '<div class="barVal" style="min-width: <%= width %>px;"></div>'+
+  '</div>');
+
+ function showProgress() {
   fetch('./progress')
     .then(function(response) {
       if (response.status == 200) {
         // Examine the text in the response
         response.json().then(function(data) {
-          var pcts = {};
+          var pcts = [];
           for (var dir in data.FileSizes) {
             for (var fname in data.FileSizes[dir]) {
               var size = data.FileSizes[dir][fname];
               var curr = _.get(data.FileProgress, [dir, fname], 0);
-              _.set(pcts, [dir, fname], curr / size);
+              pcts.push(barTmpl({dir:   dir,
+                                 fname: fname,
+                                 width: _.toInteger(500 * (curr/size))}));
             }
           }
 
           var progressEl = document.getElementsByClassName('progress')[0];
-          progressEl.innerText = JSON.stringify(pcts, null, 2);
+          progressEl.innerHTML = pcts.join("");
 
           if (data.EmitDone) {
             progressEl.className += " done";
@@ -57,7 +65,22 @@ showProgress();
 <style>
 .tall {
   position: relative;
-  min-height: 100000px;
+  min-height: 1000px;
+}
+.bar {
+  position: relative;
+}
+.bar * {
+  display: inline-block;
+  font-size: 8pt;
+}
+.bar .barName {
+  min-width: 400px;
+}
+.bar .barVal {
+  position: relative;
+  min-height: 6px;
+  background-color: #8aa;
 }
 </style>
 </body>
