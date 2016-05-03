@@ -196,6 +196,9 @@ func (run *Run) process(emitWriter io.Writer) {
 
 	run.m.Lock()
 	run.emitDone = true
+	if run.ProgressEvery > 0 {
+		run.emitProgressBarsLocked()
+	}
 	run.m.Unlock()
 }
 
