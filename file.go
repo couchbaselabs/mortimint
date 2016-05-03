@@ -43,7 +43,9 @@ type tokLit struct {
 // ------------------------------------------------------------
 
 func (p *fileProcessor) process() error {
-	fmt.Fprintf(os.Stderr, "processing %s/%s\n", p.dirBase, p.fname)
+	if p.run.ProgressEvery <= 0 {
+		fmt.Fprintf(os.Stderr, "processing %s/%s\n", p.dirBase, p.fname)
+	}
 
 	f, err := os.Open(p.dir + string(os.PathSeparator) + p.fname)
 	if err != nil {

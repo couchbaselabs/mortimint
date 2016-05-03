@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -55,7 +56,7 @@ type Run struct {
 
 	Dirs []string // Directories to process.
 
-	ProgressEvery int
+	ProgressEvery int // When > 0 emit progress every this many entries.
 
 	Run string // Comma-separated list of the kind of run, like "stdout,web".
 	Tmp string // Tmp dir to use, otherwise use a system provided tmp dir.
@@ -72,6 +73,10 @@ type Run struct {
 	// fileProcessors is keyed by dirBase, then by file name.
 	fileProcessors map[string]map[string]*fileProcessor
 	fileSizes      map[string]map[string]int64
+
+	numFiles       int
+	maxFNameOutLen int
+	spaces         string // len(spaces) == maxFNameOutLen, used for padding.
 
 	m sync.Mutex // Protects the fields that follow.
 
@@ -151,11 +156,11 @@ func csvToMap(csv string, m map[string]bool) map[string]bool {
 // ------------------------------------------------------------
 
 func (run *Run) process(emitWriter io.Writer) {
-	numFiles, maxFNameOutLen := run.processInit()
+	run.processInit()
 
 	run.emitWriter = emitWriter
 
-	workCh := make(chan *fileProcessor, numFiles)
+	workCh := make(chan *fileProcessor, run.numFiles)
 	doneCh := make(chan *fileProcessor)
 
 	for i := 0; i < run.Workers; i++ {
@@ -171,7 +176,7 @@ func (run *Run) process(emitWriter io.Writer) {
 	}
 
 	for _, dir := range run.Dirs {
-		err := run.processDir(dir, workCh, maxFNameOutLen)
+		err := run.processDir(dir, workCh)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -179,7 +184,7 @@ func (run *Run) process(emitWriter io.Writer) {
 
 	close(workCh)
 
-	for i := 0; i < numFiles; i++ {
+	for i := 0; i < run.numFiles; i++ {
 		fp := <-doneCh
 		run.m.Lock()
 		fp.dict.AddTo(run.dict)
@@ -194,7 +199,7 @@ func (run *Run) process(emitWriter io.Writer) {
 	run.m.Unlock()
 }
 
-func (run *Run) processInit() (numFiles int, maxFNameOutLen int) {
+func (run *Run) processInit() {
 	for _, dir := range run.Dirs {
 		fileInfos, err := ioutil.ReadDir(dir)
 		if err != nil {
@@ -206,11 +211,11 @@ func (run *Run) processInit() (numFiles int, maxFNameOutLen int) {
 		for _, fileInfo := range fileInfos {
 			fmeta, exists := FileMetas[fileInfo.Name()]
 			if exists && !fmeta.Skip {
-				numFiles += 1
+				run.numFiles += 1
 
 				x := len(dirBase) + len(fileInfo.Name()) + 1
-				if maxFNameOutLen < x {
-					maxFNameOutLen = x
+				if run.maxFNameOutLen < x {
+					run.maxFNameOutLen = x
 				}
 
 				if run.fileSizes[dirBase] == nil {
@@ -221,7 +226,7 @@ func (run *Run) processInit() (numFiles int, maxFNameOutLen int) {
 		}
 	}
 
-	return numFiles, maxFNameOutLen
+	run.spaces = strings.Repeat(" ", run.maxFNameOutLen)
 }
 
 func (run *Run) processEmitDict() {
@@ -242,8 +247,7 @@ func (run *Run) processEmitDict() {
 	}
 }
 
-func (run *Run) processDir(dir string, workCh chan *fileProcessor,
-	maxFNameOutLen int) error {
+func (run *Run) processDir(dir string, workCh chan *fileProcessor) error {
 	fileInfos, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return err
@@ -253,8 +257,6 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor,
 
 	run.fileProcessors[dirBase] = map[string]*fileProcessor{}
 
-	spaces := strings.Repeat(" ", maxFNameOutLen)
-
 	for _, fileInfo := range fileInfos {
 		fname := fileInfo.Name()
 		fnameBaseParts := strings.Split(strings.Replace(fname, ".log", "", -1), ",")
@@ -262,7 +264,6 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor,
 
 		fmeta, exists := FileMetas[fname]
 		if !exists || fmeta.Skip {
-			fmt.Fprintf(os.Stderr, "processing %s/%s, skipped\n", dirBase, fname)
 			continue
 		}
 
@@ -272,7 +273,7 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor,
 			dirBase:   dirBase,
 			fname:     fname,
 			fnameBase: fnameBase,
-			fnameOut:  (dirBase + "/" + fname + spaces)[0:maxFNameOutLen],
+			fnameOut:  (dirBase + "/" + fname + run.spaces)[0:run.maxFNameOutLen],
 			fmeta:     fmeta,
 			dict:      Dict{},
 		}
@@ -340,21 +341,6 @@ func (run *Run) emitEntryPart(ts, module, level, dirBase,
 	}
 }
 
-func (run *Run) emitProgressLocked(dirBase, fname string, offsetReached int64) {
-	run.emitProgress++
-	if run.ProgressEvery > 0 &&
-		(run.emitProgress%int64(run.ProgressEvery)) == 0 {
-		fmt.Fprint(os.Stderr, ".")
-	}
-
-	fileProgress := run.fileProgress[dirBase]
-	if fileProgress == nil {
-		fileProgress = map[string]int64{}
-		run.fileProgress[dirBase] = fileProgress
-	}
-	fileProgress[fname] = offsetReached
-}
-
 func emitPrepCommon(module, fnameBase string, startOffset, startLine int64) (
 	string, string) {
 	if module == "" {
@@ -366,3 +352,56 @@ func emitPrepCommon(module, fnameBase string, startOffset, startLine int64) (
 
 	return module, ol
 }
+
+func (run *Run) emitProgressLocked(dirBase, fname string, offsetReached int64) {
+	fileProgress := run.fileProgress[dirBase]
+	if fileProgress == nil {
+		fileProgress = map[string]int64{}
+		run.fileProgress[dirBase] = fileProgress
+	}
+	fileProgress[fname] = offsetReached
+
+	run.emitProgress++
+	if run.ProgressEvery > 0 &&
+		(run.emitProgress%int64(run.ProgressEvery)) == 0 {
+		run.emitProgressBarsLocked()
+	}
+}
+
+func (run *Run) emitProgressBarsLocked() {
+	fmt.Fprintf(os.Stderr, "***\n")
+
+	var dirBases []string
+	for dirBase := range run.fileSizes {
+		dirBases = append(dirBases, dirBase)
+	}
+	sort.Strings(dirBases)
+
+	for _, dirBase := range dirBases {
+		fileProgress := run.fileProgress[dirBase]
+
+		fileSizes := run.fileSizes[dirBase]
+
+		var fnames []string
+		for fname := range fileSizes {
+			fnames = append(fnames, fname)
+		}
+		sort.Strings(fnames)
+
+		for _, fname := range fnames {
+			fsize := fileSizes[fname]
+
+			pct := 0.0
+			if fileProgress != nil {
+				pct = float64(fileProgress[fname]) / float64(fsize)
+			}
+
+			fnameOut := (dirBase + "/" + fname + run.spaces)[0:run.maxFNameOutLen]
+
+			fmt.Fprintf(os.Stderr, "  %s %3d %s\n",
+				fnameOut, int(pct*100.0), bars[0:int(pct*float64(len(bars)))])
+		}
+	}
+}
+
+var bars = "================================"
