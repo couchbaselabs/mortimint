@@ -98,7 +98,7 @@ func (p *fileProcessor) processEntry(startOffset, startLine int64, lines []strin
 
 	if p.run.EmitOrig != "" {
 		linesJoined := strings.Join(lines, "\n")
-		if p.run.EmitOrig == "1line" {
+		if p.run.EmitOrig == "single" {
 			linesJoined = strings.Replace(linesJoined, "\n", " ", -1)
 		}
 

@@ -36,13 +36,66 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -%s=%s\n", f.Name, f.Value)
 	})
 
-	if run.run["web"] {
-		run.web()
-	} else if run.run["stdout"] {
+	if run.run["stdout"] {
 		run.process(os.Stdout)
-	} else {
-		log.Fatalf("unknown kind of run: %s", run.Run)
 	}
+
+	if run.run["tmp"] || run.run["web"] {
+		tmpDirToRemove := run.processTmp()
+		if tmpDirToRemove != "" {
+			defer os.RemoveAll(tmpDirToRemove)
+		}
+	}
+
+	if run.run["webServer"] || run.run["web"] {
+		run.webServer()
+
+		fmt.Fprintf(os.Stderr, "mortimint web (ctrl-d to exit) >> ")
+
+		ioutil.ReadAll(os.Stdin)
+	}
+}
+
+// ------------------------------------------------------------
+
+func (run *Run) processTmp() (tmpDirToRemove string) {
+	if run.Tmp == "" {
+		tmp, err := ioutil.TempDir("", "mortimint.tmp.")
+		if err != nil {
+			log.Fatal(err)
+		}
+		run.Tmp = tmp
+
+		tmpDirToRemove = tmp
+	}
+
+	if run.EmitDict == "" {
+		run.EmitDict = run.Tmp + string(os.PathSeparator) + "emit.dict"
+	}
+
+	emitLogPath := run.Tmp + string(os.PathSeparator) + "emit.log"
+	emitLogFile, err := os.OpenFile(emitLogPath,
+		os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Fprintf(os.Stderr, "emitting: emit.dict: %s\n", run.EmitDict)
+	fmt.Fprintf(os.Stderr, "emitting: emit.log: %s\n", emitLogPath)
+
+	if run.ProgressEvery == 0 {
+		run.ProgressEvery = 10000
+	}
+
+	go func() {
+		run.process(emitLogFile)
+		emitLogFile.Close()
+
+		fmt.Fprintf(os.Stderr, "done: emit.dict: %s\n", run.EmitDict)
+		fmt.Fprintf(os.Stderr, "done: emit.log: %s\n", emitLogPath)
+	}()
+
+	return tmpDirToRemove
 }
 
 // ------------------------------------------------------------
@@ -103,28 +156,30 @@ func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 		"optional, path to JSON dictionary output file.")
 	flagSet.StringVar(&run.EmitOrig, "emitOrig", "",
 		"when not the empty string (\"\"), source log lines are emitted to stdout;\n"+
-			"        when \"1line\", source log lines are joined into a single line.")
+			"        when \"single\", source log entries are joined into a single line.")
 	flagSet.StringVar(&run.EmitParts, "emitParts", "FULL",
 		"optional, comma-separated list of parts to emit; supported values:\n"+
-			"          FULL - emit full entry, with only light parsing;\n"+
+			"          FULL - emit full log entry, with only light parsing;\n"+
 			"          NAME - emit name=value pairs;\n"+
 			"          MIDS - emit strings in between the name=value pairs;\n"+
 			"          ENDS - emit string after last name=value pair.\n"+
 			"       ")
 	flagSet.StringVar(&run.EmitTypes, "emitTypes", "INT",
-		"optional, comma-separated list of value types to emit; supported values:\n"+
+		"optional, comma-separated list of NAME value types to emit; supported values:\n"+
 			"          INT    - emit integer name=value pairs;\n"+
 			"          STRING - emit string name=value pairs.\n"+
 			"       ")
 	flagSet.IntVar(&run.ProgressEvery, "progressEvery", 0,
-		"optional, when > 0, emit a progress dot to stderr after modulo this many emits.")
+		"optional, when > 0, emit a progress to stderr after modulo this many emits.")
 	flagSet.StringVar(&run.Run, "run", "stdout",
 		"optional, comma-separated list of the kind of run; supported values:\n"+
-			"          stdout - emit processed logs to stdout;\n"+
-			"          web    - run a webserver.\n"+
+			"          stdout    - emit processed logs to stdout;\n"+
+			"          tmp       - emit processed logs and dict to tmp dir;\n"+
+			"          web       - convenience alias for \"tmp,webServer\";\n"+
+			"          webServer - run a web server with previously processed logs and dict.\n"+
 			"       ")
 	flagSet.StringVar(&run.Tmp, "tmp", "",
-		"optional, tmp dir to use, otherwise use a system auto-created tmp dir.")
+		"optional, tmp dir to use; a tmp dir will be created when run kind has \"tmp\".")
 	flagSet.StringVar(&run.WebBind, "webAddr", ":8911",
 		"optional, addr:port when running a web server.\n"+
 			"       ")
@@ -155,8 +210,10 @@ func csvToMap(csv string, m map[string]bool) map[string]bool {
 
 // ------------------------------------------------------------
 
-func (run *Run) process(emitWriter io.Writer) {
-	run.processInit()
+func (run *Run) process(emitWriter io.Writer) bool {
+	if !run.processInit() {
+		return false // No files to process.
+	}
 
 	run.emitWriter = emitWriter
 
@@ -200,9 +257,11 @@ func (run *Run) process(emitWriter io.Writer) {
 		run.emitProgressBarsLocked()
 	}
 	run.m.Unlock()
+
+	return true
 }
 
-func (run *Run) processInit() {
+func (run *Run) processInit() bool {
 	for _, dir := range run.Dirs {
 		fileInfos, err := ioutil.ReadDir(dir)
 		if err != nil {
@@ -230,6 +289,8 @@ func (run *Run) processInit() {
 	}
 
 	run.spaces = strings.Repeat(" ", run.maxFNameOutLen)
+
+	return run.numFiles > 0
 }
 
 func (run *Run) processEmitDict() {
