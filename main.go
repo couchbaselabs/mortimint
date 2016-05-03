@@ -183,6 +183,7 @@ func (run *Run) process(emitWriter io.Writer) {
 		fp := <-doneCh
 		run.m.Lock()
 		fp.dict.AddTo(run.dict)
+		run.fileProgress[fp.dirBase][fp.fname] = run.fileSizes[fp.dirBase][fp.fname]
 		run.m.Unlock()
 	}
 
