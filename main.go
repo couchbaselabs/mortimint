@@ -57,7 +57,7 @@ func main() {
 			<-processDoneCh
 		}
 
-		fmt.Fprintf(os.Stderr, "mortimint web (ctrl-d to exit) >> ")
+		fmt.Fprintf(os.Stderr, "\nmortimint web (ctrl-d to exit) >> ")
 
 		ioutil.ReadAll(os.Stdin)
 	}
@@ -103,8 +103,8 @@ func (run *Run) processTmp() (tmpDirForCleanup string, doneCh chan struct{}) {
 
 		emitLogFile.Close()
 
-		fmt.Fprintf(os.Stderr, "done: emit.dict: %s\n", run.EmitDict)
-		fmt.Fprintf(os.Stderr, "done: emit.log: %s\n", emitLogPath)
+		fmt.Fprintf(os.Stderr, "\ndone: emited files...\n  %s\n  %s\n",
+			run.EmitDict, emitLogPath)
 	}()
 
 	return tmpDirForCleanup, doneCh
