@@ -22,8 +22,8 @@ import (
 type FileMeta struct {
 	Skip       bool                   // When true, ignore this FileMeta.
 	HeaderSize int                    // The number of lines in a skippable header.
-	EntryStart func(line string) bool // Optional, returns true when a line starts a new entry.
-	EntryRE    *regexp.Regexp         // Used to detect and parse the first line of an entry.
+	EntryStart func(line string) bool // Optional, returns true when line starts a new log entry.
+	EntryRE    *regexp.Regexp         // Used to parse the first line of a log entry.
 	Cleanser   func([]byte) []byte    // Optional, called before tokenizing an entry.
 }
 
