@@ -338,7 +338,7 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor) error {
 
 	for _, fileInfo := range fileInfos {
 		fname := fileInfo.Name()
-		fnameBaseParts := strings.Split(strings.Replace(fname, ".log", "", -1), ",")
+		fnameBaseParts := strings.Split(strings.Replace(fname, ".log", "", -1), ".")
 		fnameBase := fnameBaseParts[len(fnameBaseParts)-1]
 
 		fmeta, exists := FileMetas[fname]
