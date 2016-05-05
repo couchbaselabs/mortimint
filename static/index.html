@@ -20,6 +20,7 @@
 
 <script>
 var mainEl = document.getElementsByClassName("main")[0];
+var progressEl = document.getElementsByClassName("progress")[0];
 
 var barTmpl = _.template(
   '<div class="bar">'+
@@ -32,27 +33,13 @@ function updateProgress() {
   fetch("./progress")
     .then(function(response) {
       if (response.status != 200) {
-        console.log("fetch /progress not 200", response);
-        return;
+        return console.log("fetch /progress not 200", response);
       }
 
-      // Examine the text in the response
       response.json().then(function(data) {
         lastProgress = data;
 
-        var pcts = [];
-        for (var dir in data.FileSizes) {
-          for (var fname in data.FileSizes[dir]) {
-            var size = data.FileSizes[dir][fname];
-            var curr = _.get(data.FileProgress, [dir, fname], 0);
-            pcts.push(barTmpl({dir:   dir,
-                               fname: fname,
-                               width: _.toInteger(500 * (curr/size))}));
-          }
-        }
-
-        var progressEl = document.getElementsByClassName("progress")[0];
-        progressEl.innerHTML = pcts.join("");
+        updateProgressBars(data);
 
         if (data.EmitDone) {
           mainEl.className += " done";
@@ -67,13 +54,26 @@ function updateProgress() {
 }
 updateProgress();
 
+function updateProgressBars(data) {
+  var pcts = [];
+  for (var dir in data.FileSizes) {
+    for (var fname in data.FileSizes[dir]) {
+      var size = data.FileSizes[dir][fname];
+      var curr = _.get(data.FileProgress, [dir, fname], 0);
+      pcts.push(barTmpl({dir:   dir,
+                         fname: fname,
+                         width: _.toInteger(500 * (curr/size))}));
+    }
+  }
+  progressEl.innerHTML = pcts.join("");
+}
+
 var lastDict = {};
 function updateDict() {
   fetch("./emit/emit.dict")
     .then(function(response) {
       if (response.status != 200) {
-        console.log("fetch /emit/emit.dict not 200", response);
-        return;
+        return console.log("fetch /emit/emit.dict not 200", response);
       }
 
       response.json().then(function(data) {
