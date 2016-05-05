@@ -109,26 +109,26 @@ func (p *fileProcessor) processEntry(startOffset, startLine int64, lines []strin
 
 	firstLine := lines[0]
 
-	matchIndex := p.fmeta.PrefixRE.FindStringSubmatchIndex(firstLine)
+	matchIndex := p.fmeta.EntryRE.FindStringSubmatchIndex(firstLine)
 	if len(matchIndex) <= 0 {
 		return
 	}
 
-	ts := string(p.fmeta.PrefixRE.ExpandString(nil,
+	ts := string(p.fmeta.EntryRE.ExpandString(nil,
 		"${year}-${month}-${day}T${HH}:${MM}:${SS}.${SSSS}", firstLine, matchIndex))
 	if len(ts) > len("2016-04-19T23:10:31.209") {
 		ts = ts[0:len("2016-04-19T23:10:31.209")]
 	}
 
-	module := string(p.fmeta.PrefixRE.ExpandString(nil, "${module}", firstLine, matchIndex))
+	module := string(p.fmeta.EntryRE.ExpandString(nil, "${module}", firstLine, matchIndex))
 
-	level := string(p.fmeta.PrefixRE.ExpandString(nil, "${level}", firstLine, matchIndex))
+	level := string(p.fmeta.EntryRE.ExpandString(nil, "${level}", firstLine, matchIndex))
 	level = strings.ToUpper(strings.Trim(level, "[]"))
 	if len(level) > 4 {
 		level = level[0:4]
 	}
 
-	lines[0] = firstLine[matchIndex[1]:] // Strip off PrefixRE's match.
+	lines[0] = firstLine[matchIndex[1]:] // Strip off EntryRE's match.
 
 	if p.run.emitParts["FULL"] {
 		p.run.emitEntryFull(ts, module, level, p.dirBase,

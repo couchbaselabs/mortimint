@@ -23,7 +23,7 @@ type FileMeta struct {
 	Skip       bool                   // When true, ignore this FileMeta.
 	HeaderSize int                    // The number of lines in a skippable header.
 	EntryStart func(line string) bool // Optional, returns true when a line starts a new entry.
-	PrefixRE   *regexp.Regexp         // Used to parse the first line of an entry.
+	EntryRE    *regexp.Regexp         // Used to detect and parse the first line of an entry.
 	Cleanser   func([]byte) []byte    // Optional, called before tokenizing an entry.
 }
 
@@ -94,10 +94,10 @@ var ns_pid_re = regexp.MustCompile(`<\d+\.\d+\.\d+>`) // <0.0.0>
 
 var FileMetaUsual = FileMeta{
 	HeaderSize: 4,
-	PrefixRE:   re_usual,
+	EntryRE:    re_usual,
 }
 
-// FileMeta represents metadata about an ns-server log file.
+// FileMetaNS represents metadata about an ns-server log file.
 var FileMetaNS = FileMeta{
 	HeaderSize: 4,
 	EntryStart: func(line string) bool {
@@ -111,7 +111,7 @@ var FileMetaNS = FileMeta{
 		}
 		return unicode.IsDigit(rune(lineParts[1][0]))
 	},
-	PrefixRE: re_ns,
+	EntryRE: re_ns,
 	Cleanser: func(s []byte) []byte {
 		// Clear out first non-matching ']'.
 		rbrack := bytes.Index(s, []byte("]"))
@@ -158,7 +158,7 @@ var FileMetas = map[string]FileMeta{ // Keep alphabetical...
 
 	"memcached.log": {
 		HeaderSize: 4,
-		PrefixRE:   re_usual,
+		EntryRE:    re_usual,
 		Cleanser: func(s []byte) []byte {
 			s = re_addr.ReplaceAll(s, stringify_replace)
 			s = re_uuid.ReplaceAll(s, stringify_replace)
@@ -179,7 +179,7 @@ var FileMetas = map[string]FileMeta{ // Keep alphabetical...
 		EntryStart: func(line string) bool {
 			return re_usual.MatchString(line)
 		},
-		PrefixRE: re_usual,
+		EntryRE: re_usual,
 		Cleanser: func(s []byte) []byte {
 			return bytes.Replace(s, []byte("\n"), []byte(""), -1)
 		},
@@ -187,7 +187,7 @@ var FileMetas = map[string]FileMeta{ // Keep alphabetical...
 
 	"ns_server.goxdcr.log": {
 		HeaderSize: 4,
-		PrefixRE:   re_usual_ex,
+		EntryRE:    re_usual_ex,
 	},
 
 	"ns_server.http_access.log": {
