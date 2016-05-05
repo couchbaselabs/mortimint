@@ -40,6 +40,10 @@ func main() {
 		run.process(os.Stdout)
 	}
 
+	if run.run["webServer"] || run.run["web"] {
+		go run.webServer()
+	}
+
 	var processDoneCh chan struct{}
 
 	if run.run["tmp"] || run.run["web"] {
@@ -50,13 +54,11 @@ func main() {
 		}
 	}
 
+	if processDoneCh != nil {
+		<-processDoneCh
+	}
+
 	if run.run["webServer"] || run.run["web"] {
-		go run.webServer()
-
-		if processDoneCh != nil {
-			<-processDoneCh
-		}
-
 		fmt.Fprintf(os.Stderr, "\nmortimint web (ctrl-d to exit) >> ")
 
 		ioutil.ReadAll(os.Stdin)
