@@ -305,7 +305,7 @@ func (run *Run) processInit() bool {
 		}
 	}
 
-	run.spaces = strings.Repeat(" ", run.maxFNameOutLen + 1)
+	run.spaces = strings.Repeat(" ", run.maxFNameOutLen+1)
 
 	return run.numFiles > 0
 }
@@ -486,5 +486,3 @@ func (run *Run) emitProgressBarsLocked() {
 }
 
 var bars = "================================"
-
-
