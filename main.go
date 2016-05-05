@@ -40,15 +40,22 @@ func main() {
 		run.process(os.Stdout)
 	}
 
+	var processDoneCh chan struct{}
+
 	if run.run["tmp"] || run.run["web"] {
-		tmpDirToRemove := run.processTmp()
-		if tmpDirToRemove != "" {
-			defer os.RemoveAll(tmpDirToRemove)
+		var tmpDirForCleanup string
+		tmpDirForCleanup, processDoneCh = run.processTmp()
+		if tmpDirForCleanup != "" {
+			defer os.RemoveAll(tmpDirForCleanup)
 		}
 	}
 
 	if run.run["webServer"] || run.run["web"] {
-		run.webServer()
+		go run.webServer()
+
+		if processDoneCh != nil {
+			<-processDoneCh
+		}
 
 		fmt.Fprintf(os.Stderr, "mortimint web (ctrl-d to exit) >> ")
 
@@ -58,7 +65,7 @@ func main() {
 
 // ------------------------------------------------------------
 
-func (run *Run) processTmp() (tmpDirToRemove string) {
+func (run *Run) processTmp() (tmpDirForCleanup string, doneCh chan struct{}) {
 	if run.Tmp == "" {
 		tmp, err := ioutil.TempDir("", "mortimint.tmp.")
 		if err != nil {
@@ -66,7 +73,7 @@ func (run *Run) processTmp() (tmpDirToRemove string) {
 		}
 		run.Tmp = tmp
 
-		tmpDirToRemove = tmp
+		tmpDirForCleanup = tmp
 	}
 
 	if run.EmitDict == "" {
@@ -87,15 +94,20 @@ func (run *Run) processTmp() (tmpDirToRemove string) {
 		run.ProgressEvery = 10000
 	}
 
+	doneCh = make(chan struct{})
+
 	go func() {
+		defer close(doneCh)
+
 		run.process(emitLogFile)
+
 		emitLogFile.Close()
 
 		fmt.Fprintf(os.Stderr, "done: emit.dict: %s\n", run.EmitDict)
 		fmt.Fprintf(os.Stderr, "done: emit.log: %s\n", emitLogPath)
 	}()
 
-	return tmpDirToRemove
+	return tmpDirForCleanup, doneCh
 }
 
 // ------------------------------------------------------------
