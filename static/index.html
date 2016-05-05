@@ -4,69 +4,90 @@
 <script src="lodash.min.js"></script>
 </head>
 <body>
-<h1>mortimint</h1>
-<div>
-  <a href="/progress">progress</a>
-  <br/>
-  <a href="/emit/">emit</a>
-  <br/>
-  <a href="/emit/emit.dict">emit.dict</a>
-  <br/>
-  <a href="/emit/emit.log">emit.log</a>
+<div class="main">
+  <h1>mortimint</h1>
+  <div class="progress">...</div>
+  <div>
+    <a href="/progress">progress</a>
+    <br/>
+    <a href="/emit/">emit</a>
+    <br/>
+    <a href="/emit/emit.dict">emit.dict</a>
+    <br/>
+    <a href="/emit/emit.log">emit.log</a>
+  </div>
 </div>
-<div class="progress">...</div>
+
 <script>
+var mainEl = document.getElementsByClassName("main")[0];
+
 var barTmpl = _.template(
   '<div class="bar">'+
     '<div class="barName"><%= dir %>/<%= fname %></div>'+
     '<div class="barVal" style="min-width: <%= width %>px;"></div>'+
   '</div>');
 
- function showProgress() {
-  fetch('./progress')
+var lastProgress = {};
+function updateProgress() {
+  fetch("./progress")
     .then(function(response) {
-      if (response.status == 200) {
-        // Examine the text in the response
-        response.json().then(function(data) {
-          var pcts = [];
-          for (var dir in data.FileSizes) {
-            for (var fname in data.FileSizes[dir]) {
-              var size = data.FileSizes[dir][fname];
-              var curr = _.get(data.FileProgress, [dir, fname], 0);
-              pcts.push(barTmpl({dir:   dir,
-                                 fname: fname,
-                                 width: _.toInteger(500 * (curr/size))}));
-            }
-          }
-
-          var progressEl = document.getElementsByClassName('progress')[0];
-          progressEl.innerHTML = pcts.join("");
-
-          if (data.EmitDone) {
-            progressEl.className += " done";
-          } else {
-            setTimeout(showProgress, 1500);
-          }
-        });
+      if (response.status != 200) {
+        console.log("fetch /progress not 200", response);
+        return;
       }
+
+      // Examine the text in the response
+      response.json().then(function(data) {
+        lastProgress = data;
+
+        var pcts = [];
+        for (var dir in data.FileSizes) {
+          for (var fname in data.FileSizes[dir]) {
+            var size = data.FileSizes[dir][fname];
+            var curr = _.get(data.FileProgress, [dir, fname], 0);
+            pcts.push(barTmpl({dir:   dir,
+                               fname: fname,
+                               width: _.toInteger(500 * (curr/size))}));
+          }
+        }
+
+        var progressEl = document.getElementsByClassName("progress")[0];
+        progressEl.innerHTML = pcts.join("");
+
+        if (data.EmitDone) {
+          mainEl.className += " done";
+
+          updateDict();
+        } else {
+          setTimeout(updateProgress, 1500);
+        }
+      });
     })
-    .catch(function(err) {
-      document.getElementsByClassName('progress')[0].innerText = err;
-      console.log('fetch error :-S', err);
-    });
+    .catch(function(err) { console.log("fetch error", err); });
 }
-showProgress();
+updateProgress();
+
+var lastDict = {};
+function updateDict() {
+  fetch("./emit/emit.dict")
+    .then(function(response) {
+      if (response.status != 200) {
+        console.log("fetch /emit/emit.dict not 200", response);
+        return;
+      }
+
+      response.json().then(function(data) {
+        lastDict = data;
+      });
+    })
+    .catch(function(err) { console.log("fetch error", err); });
+}
 </script>
-<div class="tall">
-</div>
-<div>
-  hi
-</div>
 <style>
-.tall {
-  position: relative;
-  min-height: 1000px;
+.done .progress {
+  background-color: #efe;
 }
+
 .bar {
   position: relative;
 }
