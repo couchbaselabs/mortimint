@@ -40,18 +40,18 @@ func main() {
 		run.process(os.Stdout)
 	}
 
-	if run.run["webServer"] || run.run["web"] {
+	if run.run["web"] || run.run["webServer"] {
 		go run.webServer()
 	}
 
-	if run.run["tmp"] || run.run["web"] {
+	if run.run["web"] || run.run["tmp"] {
 		cleanupTmpDir := run.processTmp()
 		if cleanupTmpDir != "" {
 			defer os.RemoveAll(cleanupTmpDir)
 		}
 	}
 
-	if run.run["webServer"] || run.run["web"] {
+	if run.run["web"] || run.run["webServer"] {
 		fmt.Fprintf(os.Stderr, "\nmortimint web (ctrl-d to exit) >> ")
 
 		ioutil.ReadAll(os.Stdin)
