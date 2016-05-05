@@ -105,6 +105,9 @@ func (run *Run) processTmp() (tmpDirForCleanup string, doneCh chan struct{}) {
 
 		fmt.Fprintf(os.Stderr, "\ndone: emited files...\n  %s\n  %s\n",
 			run.EmitDict, emitLogPath)
+
+		fmt.Fprintf(os.Stderr, "\nexamples:\n\n  grep curr_items %s\n",
+			emitLogPath)
 	}()
 
 	return tmpDirForCleanup, doneCh
@@ -481,3 +484,6 @@ func (run *Run) emitProgressBarsLocked() {
 }
 
 var bars = "================================"
+var spaces = "                                "
+
+
