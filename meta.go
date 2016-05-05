@@ -85,12 +85,17 @@ var re_addr = regexp.MustCompile(`(ns_\d+@)?\d+\.\d+\.\d+.\d+`)
 
 var re_int = regexp.MustCompile(`\d+`)
 
-// ------------------------------------------------------------
-
 var equals_bar_re = regexp.MustCompile(`=======+([^=]+)=======+`)
 var equals_bar_replace = []byte(`"$1"`)
 
 var ns_pid_re = regexp.MustCompile(`<\d+\.\d+\.\d+>`) // <0.0.0>
+
+// ------------------------------------------------------------
+
+var FileMetaUsual = FileMeta{
+	HeaderSize: 4,
+	PrefixRE:   re_usual,
+}
 
 // FileMeta represents metadata about an ns-server log file.
 var FileMetaNS = FileMeta{
@@ -195,7 +200,7 @@ var FileMetas = map[string]FileMeta{ // Keep alphabetical...
 		HeaderSize: 4,
 	},
 
-	// TODO: "ns_server.indexer.log".
+	"ns_server.indexer.log": FileMetaUsual,
 
 	"ns_server.info.log": FileMetaNS,
 
@@ -205,12 +210,9 @@ var FileMetas = map[string]FileMeta{ // Keep alphabetical...
 
 	"ns_server.ns_couchdb.log": FileMetaNS,
 
-	"ns_server.projector.log": {
-		HeaderSize: 4,
-		PrefixRE:   re_usual,
-	},
+	"ns_server.projector.log": FileMetaUsual,
 
-	// TODO: "ns_server.query.log".
+	"ns_server.query.log": FileMetaUsual, // TODO: Revisit.
 
 	"ns_server.reports.log": FileMetaNS,
 
