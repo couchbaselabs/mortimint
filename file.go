@@ -124,11 +124,8 @@ func (p *fileProcessor) processEntry(startOffset, startLine int64, lines []strin
 
 	level := string(p.fmeta.EntryRE.ExpandString(nil, "${level}", firstLine, matchIndex))
 	level = strings.ToUpper(strings.Trim(level, "[]"))
-	if level != "DEBUG" {
-		if len(level) > 4 {
-			level = level[0:4]
-		}
-		level = level + spaces[0:5-len(level)]
+	if len(level) > 4 && level != "DEBUG"{
+		level = level[0:4]
 	}
 
 	lines[0] = firstLine[matchIndex[1]:] // Strip off EntryRE's match.
