@@ -106,7 +106,7 @@ type Run struct {
 	EmitDict  string // Path to optional JSON dictionary file to output.
 	EmitOrig  string // When non-"", original log entries will be emitted to stdout.
 	EmitParts string // Comma-separated list of parts of data to emit (NAME, MIDS, ENDS).
-	EmitTypes string // Comma-separated list of value types to emit (INT, STRING),
+	EmitTypes string // Comma-separated list of value types to emit (INT, STRING).
 
 	Dirs []string // Directories to process.
 
