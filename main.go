@@ -44,18 +44,11 @@ func main() {
 		go run.webServer()
 	}
 
-	var processDoneCh chan struct{}
-
 	if run.run["tmp"] || run.run["web"] {
-		var tmpDirForCleanup string
-		tmpDirForCleanup, processDoneCh = run.processTmp()
-		if tmpDirForCleanup != "" {
-			defer os.RemoveAll(tmpDirForCleanup)
+		cleanupTmpDir := run.processTmp()
+		if cleanupTmpDir != "" {
+			defer os.RemoveAll(cleanupTmpDir)
 		}
-	}
-
-	if processDoneCh != nil {
-		<-processDoneCh
 	}
 
 	if run.run["webServer"] || run.run["web"] {
@@ -67,7 +60,7 @@ func main() {
 
 // ------------------------------------------------------------
 
-func (run *Run) processTmp() (tmpDirForCleanup string, doneCh chan struct{}) {
+func (run *Run) processTmp() (cleanupTmpDir string) {
 	if run.Tmp == "" {
 		tmp, err := ioutil.TempDir("", "mortimint.tmp.")
 		if err != nil {
@@ -75,7 +68,11 @@ func (run *Run) processTmp() (tmpDirForCleanup string, doneCh chan struct{}) {
 		}
 		run.Tmp = tmp
 
-		tmpDirForCleanup = tmp
+		cleanupTmpDir = tmp
+	}
+
+	if run.ProgressEvery == 0 {
+		run.ProgressEvery = 10000
 	}
 
 	if run.EmitDict == "" {
@@ -83,36 +80,23 @@ func (run *Run) processTmp() (tmpDirForCleanup string, doneCh chan struct{}) {
 	}
 
 	emitLogPath := run.Tmp + string(os.PathSeparator) + "emit.log"
-	emitLogFile, err := os.OpenFile(emitLogPath,
-		os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	emitLogFile, err := os.OpenFile(emitLogPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer emitLogFile.Close()
 
 	fmt.Fprintf(os.Stderr, "emitting: emit.dict: %s\n", run.EmitDict)
 	fmt.Fprintf(os.Stderr, "emitting: emit.log: %s\n", emitLogPath)
 
-	if run.ProgressEvery == 0 {
-		run.ProgressEvery = 10000
-	}
+	run.process(emitLogFile)
 
-	doneCh = make(chan struct{})
+	fmt.Fprintf(os.Stderr, "\ndone: emited files...\n  %s\n  %s\n",
+		run.EmitDict, emitLogPath)
+	fmt.Fprintf(os.Stderr, "\nexamples:\n\n  grep curr_items %s\n",
+		emitLogPath)
 
-	go func() {
-		defer close(doneCh)
-
-		run.process(emitLogFile)
-
-		emitLogFile.Close()
-
-		fmt.Fprintf(os.Stderr, "\ndone: emited files...\n  %s\n  %s\n",
-			run.EmitDict, emitLogPath)
-
-		fmt.Fprintf(os.Stderr, "\nexamples:\n\n  grep curr_items %s\n",
-			emitLogPath)
-	}()
-
-	return tmpDirForCleanup, doneCh
+	return cleanupTmpDir
 }
 
 // ------------------------------------------------------------
