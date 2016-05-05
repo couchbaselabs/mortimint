@@ -44,6 +44,22 @@ type FileMeta struct {
 // From ns_server.http_access.log...
 //   172.23.123.146 - Administrator [14/Apr/2016:16:10:19 -0700] \
 //     "GET /nodes/self HTTP/1.1" 200 1727 - Python-httplib2/$Rev: 259 $
+//
+// From query...
+//   _time=2016-04-05T13:23:05.378+01:00 _level=INFO _msg=Created New Bucket default
+//   2016/04/05 13:23:05  Trying with http://127.0.0.1:8091/pools/default/bucketsStreaming/default
+//   2016-04-05T13:24:05.388+01:00 [Info] connected with 1 indexers
+//
+// From indexer...
+//   ==== Index Instance 12648800643524082356 ====
+//   2016-04-12T10:35:32.355+01:00 [Info] connected with 1 indexers
+//   2016-04-12T10:35:32.355+01:00 [Info] index 17632878461435344554 has 1 replicas
+//
+// From projector...
+//   2016-04-11T20:53:31.327+01:00 [Info] memstats {"Alloc":79226592, ...}
+//   2016-04-12T10:17:35.286+01:00 [Info] VBRT[<-49<-travel-sample<-127.0.0.1:8091 \
+//     #MAINT_STREAM_TOPIC_bb:44:4a:7f:f5:90:d5:91] ##3b created
+//   2016-04-05T13:22:26.133+01:00 [Info] pram[:9999] registered /adminport/vbmapRequest
 
 var ymd = `(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)`
 var hms = `T(?P<HH>\d\d):(?P<MM>\d\d):(?P<SS>\d\d)\.(?P<SSSS>\d+)`
