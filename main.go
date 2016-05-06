@@ -332,6 +332,8 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor) error {
 			continue
 		}
 
+		run.fileProgress[dirBase] = map[string]int64{}
+
 		run.fileProcessors[dirBase][fname] = &fileProcessor{
 			run:       run,
 			dir:       dir,
@@ -419,12 +421,7 @@ func emitPrepCommon(module, fnameBase string, startOffset, startLine int64) (
 }
 
 func (run *Run) emitProgressLocked(dirBase, fname string, offsetReached int64) {
-	fileProgress := run.fileProgress[dirBase]
-	if fileProgress == nil {
-		fileProgress = map[string]int64{}
-		run.fileProgress[dirBase] = fileProgress
-	}
-	fileProgress[fname] = offsetReached
+	run.fileProgress[dirBase][fname] = offsetReached
 
 	run.emitProgress++
 	if run.ProgressEvery > 0 &&
