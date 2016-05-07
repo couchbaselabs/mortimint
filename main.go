@@ -37,8 +37,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -%s=%s\n", f.Name, f.Value)
 	})
 
-	if run.run["stdout"] {
-		run.process(os.Stdout)
+	if run.run["std"] || run.run["stdin"] {
+		go run.webGraph(os.Stdin)
+	}
+
+	if run.run["std"] || run.run["stdout"] {
+		run.processDirs(os.Stdout)
 	}
 
 	if run.run["web"] || run.run["webServer"] {
@@ -94,7 +98,7 @@ func (run *Run) processTmp() (cleanupTmpDir string) {
 	fmt.Fprintf(os.Stderr, "emitting: emit.dict: %s\n", run.EmitDict)
 	fmt.Fprintf(os.Stderr, "emitting: emit.log: %s\n", emitLogPath)
 
-	run.process(emitLogFile)
+	run.processDirs(emitLogFile)
 
 	fmt.Fprintf(os.Stderr, "\ndone: emited files...\n  %s\n  %s\n",
 		run.EmitDict, emitLogPath)
@@ -177,8 +181,10 @@ func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 			"       ")
 	flagSet.IntVar(&run.ProgressEvery, "progressEvery", 0,
 		"optional, when > 0, emit a progress to stderr after modulo this many emits.")
-	flagSet.StringVar(&run.Run, "run", "stdout",
+	flagSet.StringVar(&run.Run, "run", "std",
 		"optional, comma-separated list of the kind of run; supported values:\n"+
+			"          std       - convenience alias for \"stdin,stdout\";\n"+
+			"          stdin     - process stdin to send to web server for graphing;\n"+
 			"          stdout    - emit processed logs to stdout;\n"+
 			"          tmp       - emit processed logs and dict to tmp dir;\n"+
 			"          web       - convenience alias for \"tmp,webServer\";\n"+
@@ -216,7 +222,7 @@ func csvToMap(csv string, m map[string]bool) map[string]bool {
 
 // ------------------------------------------------------------
 
-func (run *Run) process(emitWriter io.Writer) bool {
+func (run *Run) processDirs(emitWriter io.Writer) bool {
 	if !run.processInit() {
 		return false // No files to process.
 	}

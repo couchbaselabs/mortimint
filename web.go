@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -55,4 +56,9 @@ func (run *Run) webRouter() *mux.Router {
 			http.FileServer(http.Dir(run.WebStatic))))
 
 	return r
+}
+
+// ------------------------------------------------------
+
+func (run *Run) webGraph(r io.Reader) {
 }
