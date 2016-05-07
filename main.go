@@ -73,7 +73,7 @@ func main() {
 type Run struct {
 	EmitDict  string // Path to optional JSON dictionary file to output.
 	EmitOrig  string // When non-"", original log entries will be emitted to stdout.
-	EmitParts string // Comma-separated list of parts of data to emit (NAME, MIDS, ENDS).
+	EmitParts string // Comma-separated list of parts of data to emit (VALS, MIDS, ENDS).
 	EmitTypes string // Comma-separated list of value types to emit (INT, STRING).
 
 	Dirs []string // Directories to process.
@@ -132,12 +132,12 @@ func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 	flagSet.StringVar(&run.EmitParts, "emitParts", "FULL",
 		"optional, comma-separated list of parts to emit; supported values:\n"+
 			"          FULL - emit full log entry, with only light parsing;\n"+
-			"          NAME - emit name=value pairs;\n"+
+			"          VALS - emit name=value pairs;\n"+
 			"          MIDS - emit strings in between the name=value pairs;\n"+
 			"          ENDS - emit string after last name=value pair.\n"+
 			"       ")
 	flagSet.StringVar(&run.EmitTypes, "emitTypes", "INT",
-		"optional, comma-separated list of NAME value types to emit; supported values:\n"+
+		"optional, comma-separated list of VALS value types to emit; supported values:\n"+
 			"          INT    - emit integer name=value pairs;\n"+
 			"          STRING - emit string name=value pairs.\n"+
 			"       ")

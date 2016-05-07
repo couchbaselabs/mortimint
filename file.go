@@ -278,7 +278,7 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int64,
 					p.dict.AddDictEntry(tokStr, name, tokLit.lit)
 					p.run.emitEntryPart(ts, module, level, p.dirBase,
 						p.fname, p.fnameBase, p.fnameOut, startOffset, startLine,
-						"NAME", namePath, name, tokStr, tokLit.lit, false)
+						"VALS", namePath, name, tokStr, tokLit.lit, false)
 				}
 			}
 		} else {
