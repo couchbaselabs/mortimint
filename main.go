@@ -111,6 +111,8 @@ type Run struct {
 	fileProgress map[string]map[string]int64 // Byte offsets reached.
 
 	minTS, maxTS string
+
+	graphData GraphData
 }
 
 func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {

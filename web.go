@@ -14,6 +14,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type GraphData struct {
+	Rev int64
+}
+
 func (run *Run) web() {
 	run.processTmp()
 }
@@ -52,15 +56,22 @@ func (run *Run) webRouter() *mux.Router {
 				run.fileProgress,
 			})
 			run.m.Unlock()
-		})
+		}).Methods("GET")
+
+	r.HandleFunc("/graphData",
+		func(w http.ResponseWriter, r *http.Request) {
+			run.m.Lock()
+			json.NewEncoder(w).Encode(run.graphData)
+			run.m.Unlock()
+		}).Methods("GET")
 
 	r.PathPrefix("/emit/").
 		Handler(http.StripPrefix("/emit/",
-			http.FileServer(http.Dir(run.Tmp))))
+			http.FileServer(http.Dir(run.Tmp)))).Methods("GET")
 
 	r.PathPrefix("/").
 		Handler(http.StripPrefix("/",
-			http.FileServer(http.Dir(run.WebStatic))))
+			http.FileServer(http.Dir(run.WebStatic)))).Methods("GET")
 
 	return r
 }

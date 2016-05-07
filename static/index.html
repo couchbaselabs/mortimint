@@ -79,6 +79,28 @@ function updateDict() {
 
       response.json().then(function(data) {
         lastDict = data;
+
+        updateGraph()
+      });
+    })
+    .catch(function(err) { console.log("fetch error", err); });
+}
+
+var graphData = {};
+var graphNum = 0;
+function updateGraph() {
+  graphNum++;
+
+  fetch("./graphData")
+    .then(function(response) {
+      if (response.status != 200) {
+        return console.log("fetch /graphData not 200", response);
+      }
+
+      response.json().then(function(data) {
+        graphData = data;
+
+        setTimeout(updateGraph, 1500);
       });
     })
     .catch(function(err) { console.log("fetch error", err); });
