@@ -37,12 +37,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -%s=%s\n", f.Name, f.Value)
 	})
 
-	if run.run["std"] || run.run["stdin"] {
-		go run.webGraph(os.Stdin)
-	}
-
 	if run.run["std"] || run.run["stdout"] {
 		run.processDirs(os.Stdout)
+	}
+
+	if (run.run["std"] || run.run["stdin"]) && len(run.Dirs) <= 0 {
+		run.webGraph(os.Stdin)
 	}
 
 	if run.run["web"] || run.run["webServer"] {
@@ -65,47 +65,6 @@ func main() {
 
 		ioutil.ReadAll(os.Stdin)
 	}
-}
-
-// ------------------------------------------------------------
-
-func (run *Run) processTmp() (cleanupTmpDir string) {
-	if run.Tmp == "" {
-		tmp, err := ioutil.TempDir("", "mortimint.tmp.")
-		if err != nil {
-			log.Fatal(err)
-		}
-		run.Tmp = tmp
-
-		cleanupTmpDir = tmp
-	}
-
-	if run.ProgressEvery == 0 {
-		run.ProgressEvery = 10000
-	}
-
-	if run.EmitDict == "" {
-		run.EmitDict = run.Tmp + string(os.PathSeparator) + "emit.dict"
-	}
-
-	emitLogPath := run.Tmp + string(os.PathSeparator) + "emit.log"
-	emitLogFile, err := os.OpenFile(emitLogPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer emitLogFile.Close()
-
-	fmt.Fprintf(os.Stderr, "emitting: emit.dict: %s\n", run.EmitDict)
-	fmt.Fprintf(os.Stderr, "emitting: emit.log: %s\n", emitLogPath)
-
-	run.processDirs(emitLogFile)
-
-	fmt.Fprintf(os.Stderr, "\ndone: emited files...\n  %s\n  %s\n",
-		run.EmitDict, emitLogPath)
-	fmt.Fprintf(os.Stderr, "\nexamples:\n\n  grep curr_items %s\n",
-		emitLogPath)
-
-	return cleanupTmpDir
 }
 
 // ------------------------------------------------------------
@@ -218,6 +177,47 @@ func csvToMap(csv string, m map[string]bool) map[string]bool {
 		m[k] = true
 	}
 	return m
+}
+
+// ------------------------------------------------------------
+
+func (run *Run) processTmp() (cleanupTmpDir string) {
+	if run.Tmp == "" {
+		tmp, err := ioutil.TempDir("", "mortimint.tmp.")
+		if err != nil {
+			log.Fatal(err)
+		}
+		run.Tmp = tmp
+
+		cleanupTmpDir = tmp
+	}
+
+	if run.ProgressEvery == 0 {
+		run.ProgressEvery = 10000
+	}
+
+	if run.EmitDict == "" {
+		run.EmitDict = run.Tmp + string(os.PathSeparator) + "emit.dict"
+	}
+
+	emitLogPath := run.Tmp + string(os.PathSeparator) + "emit.log"
+	emitLogFile, err := os.OpenFile(emitLogPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer emitLogFile.Close()
+
+	fmt.Fprintf(os.Stderr, "emitting: emit.dict: %s\n", run.EmitDict)
+	fmt.Fprintf(os.Stderr, "emitting: emit.log: %s\n", emitLogPath)
+
+	run.processDirs(emitLogFile)
+
+	fmt.Fprintf(os.Stderr, "\ndone: emited files...\n  %s\n  %s\n",
+		run.EmitDict, emitLogPath)
+	fmt.Fprintf(os.Stderr, "\nexamples:\n\n  grep curr_items %s\n",
+		emitLogPath)
+
+	return cleanupTmpDir
 }
 
 // ------------------------------------------------------------
