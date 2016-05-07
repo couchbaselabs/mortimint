@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -41,6 +42,10 @@ func main() {
 	}
 
 	if run.run["web"] || run.run["webServer"] {
+		if run.Workers <= 0 {
+			run.Workers = runtime.NumCPU()
+		}
+
 		go run.webServer()
 	}
 
@@ -187,7 +192,7 @@ func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 	flagSet.StringVar(&run.WebStatic, "webStatic", "./static",
 		"optional, directory of web static resources.\n"+
 			"       ")
-	flagSet.IntVar(&run.Workers, "workers", 1,
+	flagSet.IntVar(&run.Workers, "workers", 0,
 		"optional, number of concurrent processing workers to use.\n"+
 			"       ")
 
@@ -221,7 +226,12 @@ func (run *Run) process(emitWriter io.Writer) bool {
 	workCh := make(chan *fileProcessor, run.numFiles)
 	doneCh := make(chan *fileProcessor)
 
-	for i := 0; i < run.Workers; i++ {
+	workers := run.Workers
+	if workers <= 0 {
+		workers = 1
+	}
+
+	for i := 0; i < workers; i++ {
 		go func() {
 			for fp := range workCh {
 				err := fp.process()
