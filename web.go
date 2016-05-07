@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -13,10 +14,6 @@ import (
 
 	"github.com/gorilla/mux"
 )
-
-type GraphData struct {
-	Rev int64
-}
 
 func (run *Run) web() {
 	run.processTmp()
@@ -64,6 +61,27 @@ func (run *Run) webRouter() *mux.Router {
 			json.NewEncoder(w).Encode(run.graphData)
 			run.m.Unlock()
 		}).Methods("GET")
+
+	r.HandleFunc("/graphData",
+		func(w http.ResponseWriter, r *http.Request) {
+			requestBody, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), 400)
+				return
+			}
+
+			var graphData GraphData
+			err = json.Unmarshal(requestBody, &graphData)
+			if err != nil {
+				http.Error(w, err.Error(), 400)
+				return
+			}
+
+			run.m.Lock()
+			run.graphData.Merge(&graphData)
+			run.graphData.Rev++
+			run.m.Unlock()
+		}).Methods("POST")
 
 	r.PathPrefix("/emit/").
 		Handler(http.StripPrefix("/emit/",
