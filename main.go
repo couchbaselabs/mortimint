@@ -128,13 +128,13 @@ func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 	flagSet.StringVar(&run.EmitOrig, "emitOrig", "",
 		"when not the empty string (\"\"), source log lines are emitted to stdout;\n"+
 			"        when \"single\", source log entries are joined into a single line;\n"+
-	        "        this is useful when debugging mortimint.")
+			"        this is useful when debugging mortimint.")
 	flagSet.StringVar(&run.EmitParts, "emitParts", "FULL",
 		"optional, comma-separated list of parts to emit; supported values:\n"+
 			"          FULL - emit full log entry, with only light parsing;\n"+
 			"          VALS - emit name=value pairs;\n"+
-			"          MIDS - emit strings in between the name=value pairs;\n"+
-			"          ENDS - emit string after last name=value pair.\n"+
+			"          MIDS - uncommon; emit strings in between the name=value pairs;\n"+
+			"          ENDS - uncommon; emit string after last name=value pair.\n"+
 			"       ")
 	flagSet.StringVar(&run.EmitTypes, "emitTypes", "INT",
 		"optional, comma-separated list of VALS value types to emit; supported values:\n"+
@@ -325,10 +325,10 @@ func (run *Run) processEmitDict() {
 		defer f.Close()
 
 		err = json.NewEncoder(f).Encode(struct {
-				MinTS string
-			    MaxTS string
-			    Dict  Dict
-		}{ run.minTS, run.maxTS, run.dict})
+			MinTS string
+			MaxTS string
+			Dict  Dict
+		}{run.minTS, run.maxTS, run.dict})
 		if err != nil {
 			log.Fatal(err)
 		}
