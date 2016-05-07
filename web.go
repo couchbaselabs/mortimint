@@ -38,11 +38,14 @@ func (run *Run) webRouter() *mux.Router {
 		func(w http.ResponseWriter, r *http.Request) {
 			run.m.Lock()
 			json.NewEncoder(w).Encode(struct {
+				MinTS, MaxTS string
 				EmitDone     bool
 				EmitProgress int64
 				FileSizes    map[string]map[string]int64
 				FileProgress map[string]map[string]int64
 			}{
+				run.minTS,
+				run.maxTS,
 				run.emitDone,
 				run.emitProgress,
 				run.fileSizes,

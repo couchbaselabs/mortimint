@@ -109,6 +109,8 @@ type Run struct {
 	emitDone     bool
 	emitProgress int64                       // Total number of emitXxxx() calls.
 	fileProgress map[string]map[string]int64 // Byte offsets reached.
+
+	minTS, maxTS string
 }
 
 func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
@@ -321,7 +323,11 @@ func (run *Run) processEmitDict() {
 		}
 		defer f.Close()
 
-		err = json.NewEncoder(f).Encode(run.dict)
+		err = json.NewEncoder(f).Encode(struct {
+				MinTS string
+			    MaxTS string
+			    Dict  Dict
+		}{ run.minTS, run.maxTS, run.dict})
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -374,7 +380,7 @@ func (run *Run) emitEntryFull(ts, module, level, dirBase,
 	startOffset, startLine int64, lines []string) {
 	linesJoined := strings.Replace(strings.Join(lines, " "), "\n", " ", -1)
 
-	module, ol := emitPrepCommon(module, fnameBase, startOffset, startLine)
+	module, ol := emitCommonPrep(module, fnameBase, startOffset, startLine)
 
 	partKind := ""
 	if len(run.emitParts) > 1 {
@@ -385,7 +391,7 @@ func (run *Run) emitEntryFull(ts, module, level, dirBase,
 	fmt.Fprintf(run.emitWriter, "  %s %s %s %s %s%s ",
 		ts, level, fnameOut, ol, partKind, module)
 	fmt.Fprintln(run.emitWriter, linesJoined)
-	run.emitProgressLocked(dirBase, fname, startOffset)
+	run.emitCommonLocked(ts, dirBase, fname, startOffset)
 	run.m.Unlock()
 }
 
@@ -394,7 +400,7 @@ func (run *Run) emitEntryPart(ts, module, level, dirBase,
 	startOffset, startLine int64, partKind string,
 	namePath []string, name, valType, val string, valQuoted bool) {
 	if run.emitParts[partKind] && len(val) > 0 {
-		module, ol := emitPrepCommon(module, fnameBase, startOffset, startLine)
+		module, ol := emitCommonPrep(module, fnameBase, startOffset, startLine)
 
 		if len(run.emitParts) <= 1 {
 			partKind = ""
@@ -418,13 +424,13 @@ func (run *Run) emitEntryPart(ts, module, level, dirBase,
 				namePath, name, valType, val)
 		}
 
-		run.emitProgressLocked(dirBase, fname, startOffset)
+		run.emitCommonLocked(ts, dirBase, fname, startOffset)
 
 		run.m.Unlock()
 	}
 }
 
-func emitPrepCommon(module, fnameBase string, startOffset, startLine int64) (
+func emitCommonPrep(module, fnameBase string, startOffset, startLine int64) (
 	string, string) {
 	if module == "" {
 		module = fnameBase
@@ -436,13 +442,21 @@ func emitPrepCommon(module, fnameBase string, startOffset, startLine int64) (
 	return module, ol
 }
 
-func (run *Run) emitProgressLocked(dirBase, fname string, offsetReached int64) {
+func (run *Run) emitCommonLocked(ts, dirBase, fname string, offsetReached int64) {
 	run.fileProgress[dirBase][fname] = offsetReached
 
 	run.emitProgress++
 	if run.ProgressEvery > 0 &&
 		(run.emitProgress%int64(run.ProgressEvery)) == 0 {
 		run.emitProgressBarsLocked()
+	}
+
+	if run.minTS == "" || run.minTS > ts {
+		run.minTS = ts
+	}
+
+	if run.maxTS < ts {
+		run.maxTS = ts
 	}
 }
 
