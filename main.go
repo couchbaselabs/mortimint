@@ -61,6 +61,12 @@ func main() {
 	}
 
 	if run.run["web"] || run.run["webServer"] {
+		webAddr := run.WebAddr
+		if len(webAddr) > 0 && webAddr[0] == ':' {
+			webAddr = "127.0.0.1" + webAddr
+		}
+
+		fmt.Fprintf(os.Stderr, "\nmortimint web running on:\n  http://%s\n", webAddr)
 		fmt.Fprintf(os.Stderr, "\nmortimint web (ctrl-d to exit) >> ")
 
 		ioutil.ReadAll(os.Stdin)
@@ -218,9 +224,9 @@ func (run *Run) processTmp() (cleanupTmpDir string) {
 
 	run.processDirs(emitLogFile)
 
-	fmt.Fprintf(os.Stderr, "\ndone: emited files...\n  %s\n  %s\n",
+	fmt.Fprintf(os.Stderr, "\ndone, emitted files:\n  %s\n  %s\n",
 		run.EmitDict, emitLogPath)
-	fmt.Fprintf(os.Stderr, "\nexamples:\n\n  grep curr_items %s\n",
+	fmt.Fprintf(os.Stderr, "\nexamples:\n  grep curr_items %s\n",
 		emitLogPath)
 
 	return cleanupTmpDir
