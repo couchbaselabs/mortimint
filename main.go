@@ -127,7 +127,8 @@ func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 		"optional, path to JSON dictionary output file.")
 	flagSet.StringVar(&run.EmitOrig, "emitOrig", "",
 		"when not the empty string (\"\"), source log lines are emitted to stdout;\n"+
-			"        when \"single\", source log entries are joined into a single line.")
+			"        when \"single\", source log entries are joined into a single line;\n"+
+	        "        this is useful when debugging mortimint.")
 	flagSet.StringVar(&run.EmitParts, "emitParts", "FULL",
 		"optional, comma-separated list of parts to emit; supported values:\n"+
 			"          FULL - emit full log entry, with only light parsing;\n"+
