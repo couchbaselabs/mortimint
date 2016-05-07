@@ -83,7 +83,7 @@ type Run struct {
 	Run string // Comma-separated list of the kind of run, like "stdout,web".
 	Tmp string // Tmp dir to use, otherwise use a system provided tmp dir.
 
-	WebBind   string // Host:Port that web server should use.
+	WebAddr   string // Host:Port to use for web server.
 	WebStatic string // Path to web static resources dir.
 
 	Workers int // Size of workers pool for concurrency.
@@ -156,11 +156,12 @@ func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 			"       ")
 	flagSet.StringVar(&run.Tmp, "tmp", "",
 		"optional, tmp dir to use; a tmp dir will be created when run kind has \"tmp\".")
-	flagSet.StringVar(&run.WebBind, "webAddr", ":8911",
-		"optional, addr:port when running a web server.\n"+
+	flagSet.StringVar(&run.WebAddr, "webAddr", ":8911",
+		"optional, addr:port to use for web server.\n"+
 			"       ")
 	flagSet.StringVar(&run.WebStatic, "webStatic", "./static",
-		"optional, directory of web static resources.\n"+
+		"optional, directory of static web server resources;\n"+
+			"        this is useful when debugging mortimint."+
 			"       ")
 	flagSet.IntVar(&run.Workers, "workers", 0,
 		"optional, number of concurrent processing workers to use.\n"+

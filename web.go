@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,17 +11,14 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
 )
 
-func (run *Run) web() {
-	run.processTmp()
-}
-
 func (run *Run) webServer() {
-	err := http.ListenAndServe(run.WebBind, run.webRouter())
+	err := http.ListenAndServe(run.WebAddr, run.webRouter())
 	if err != nil {
 		log.Fatalf("error: http listen/serve err: %v", err)
 	}
@@ -64,21 +62,24 @@ func (run *Run) webRouter() *mux.Router {
 
 	r.HandleFunc("/graphData",
 		func(w http.ResponseWriter, r *http.Request) {
-			requestBody, err := ioutil.ReadAll(r.Body)
+			body, err := ioutil.ReadAll(r.Body)
 			if err != nil {
 				http.Error(w, err.Error(), 400)
 				return
 			}
 
 			var graphData GraphData
-			err = json.Unmarshal(requestBody, &graphData)
+			err = json.Unmarshal(body, &graphData)
 			if err != nil {
 				http.Error(w, err.Error(), 400)
 				return
 			}
 
 			run.m.Lock()
-			run.graphData.Merge(&graphData)
+			run.graphData.MergeData(&graphData)
+			if run.graphData.Rev < graphData.Rev {
+				run.graphData.Rev = graphData.Rev
+			}
 			run.graphData.Rev++
 			run.m.Unlock()
 		}).Methods("POST")
@@ -99,7 +100,14 @@ func (run *Run) webRouter() *mux.Router {
 var spaces_re = regexp.MustCompile(`\s+`)
 
 func (run *Run) webGraph(r io.Reader) {
+	if run.WebAddr == "" {
+		log.Fatal("error: need webAddr parameter")
+		return
+	}
+
 	fmt.Printf("webGraph... %v\n", r)
+
+	graphData := GraphData{}
 
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(nil, ScannerBufferCapacity)
@@ -123,15 +131,46 @@ func (run *Run) webGraph(r io.Reader) {
 			continue
 		}
 
-		ts, level, dirBaseFName, offsetByteLine, module :=
+		ts, level, dirFName, offsetByteLine, module :=
 			lineParts[0], lineParts[1], lineParts[2], lineParts[3], lineParts[4]
+
+		var offsetByte, offsetLine int64
+
+		offsetByteLineParts := strings.Split(offsetByteLine, ":")
+		if len(offsetByteLineParts) >= 2 {
+			offsetByte, _ = strconv.ParseInt(offsetByteLineParts[0], 10, 64)
+			offsetLine, _ = strconv.ParseInt(offsetByteLineParts[1], 10, 64)
+		}
 
 		path := strings.Join(lineParts[5:len(lineParts)-4], " ")
 		path = path[1 : len(path)-1]
 		name := lineParts[len(lineParts)-4]
 		val := lineParts[len(lineParts)-1]
 
-		fmt.Printf("%s, %s, %s, %s, %s, %s\n", ts, level, dirBaseFName, offsetByteLine, module, path)
-		fmt.Printf("  %s, %s\n", name, val)
+		graphData.Data[name] = append(graphData.Data[name], &GraphEntry{
+			Ts:         ts,
+			Level:      level,
+			DirFName:   dirFName,
+			OffSetByte: offsetByte,
+			OffsetLine: offsetLine,
+			Module:     module,
+			Path:       path,
+			Val:        val,
+		})
 	}
+
+	buf, err := json.Marshal(graphData)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	resp, err := http.Post("http://" + run.WebAddr + "/graphData",
+		"application/json", bytes.NewReader(buf))
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	fmt.Printf("resp: %#v\n", resp)
 }
