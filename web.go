@@ -165,7 +165,7 @@ func (run *Run) webGraph(r io.Reader) {
 		return
 	}
 
-	resp, err := http.Post("http://" + run.WebAddr + "/graphData",
+	resp, err := http.Post("http://"+run.WebAddr+"/graphData",
 		"application/json", bytes.NewReader(buf))
 	if err != nil {
 		log.Fatal(err)
