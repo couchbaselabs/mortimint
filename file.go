@@ -130,10 +130,12 @@ func (p *fileProcessor) processEntry(startOffset, startLine int64, lines []strin
 
 	lines[0] = firstLine[matchIndex[1]:] // Strip off EntryRE's match.
 
-	if p.run.emitParts["FULL"] {
-		p.run.emitEntryFull(ts, module, level, p.dirBase,
-			p.fname, p.fnameBase, p.fnameOut, startOffset, startLine, lines)
-	}
+	var ol string // The ol looks like "offset:line".
+
+	module, ol = emitCommonPrep(module, p.fnameBase, startOffset, startLine)
+
+	p.run.emitEntryFull(ts, module, level, p.dirBase,
+		p.fname, p.fnameBase, p.fnameOut, ol, startOffset, startLine, lines)
 
 	p.buf = p.buf[0:0]
 	for _, line := range lines {
@@ -152,7 +154,7 @@ func (p *fileProcessor) processEntry(startOffset, startLine int64, lines []strin
 	s.Init(fset.AddFile(p.dir+string(os.PathSeparator)+p.fname,
 		fset.Base(), len(p.buf)), p.buf, nil /* No error handler. */, 0)
 
-	p.processEntryTokens(startOffset, startLine, ts, module, level, &s,
+	p.processEntryTokens(startOffset, startLine, ol, ts, module, level, &s,
 		make([]string, 0, 20))
 }
 
@@ -189,7 +191,7 @@ var skipToken = map[token.Token]bool{
 }
 
 func (p *fileProcessor) processEntryTokens(startOffset, startLine int64,
-	ts, module, level string, s *scanner.Scanner, path []string) {
+	ol, ts, module, level string, s *scanner.Scanner, path []string) {
 	var tokLits []tokLit
 	var emitted int
 
@@ -211,11 +213,11 @@ func (p *fileProcessor) processEntryTokens(startOffset, startLine int64,
 				pathSub = append(pathSub, pathPart)
 			}
 
-			emitted = p.emitTokLits(startOffset, startLine, ts, module, level,
+			emitted = p.emitTokLits(startOffset, startLine, ol, ts, module, level,
 				path, tokLits, emitted)
 
 			// Recurse on nested sub-level.
-			p.processEntryTokens(startOffset, startLine, ts, module, level, s, pathSub)
+			p.processEntryTokens(startOffset, startLine, ol, ts, module, level, s, pathSub)
 		} else if delta < 0 {
 			break // Return from nested sub-level recursion.
 		} else {
@@ -240,13 +242,13 @@ func (p *fileProcessor) processEntryTokens(startOffset, startLine int64,
 		}
 	}
 
-	p.emitTokLits(startOffset, startLine, ts, module, level, path, tokLits, emitted)
+	p.emitTokLits(startOffset, startLine, ol, ts, module, level, path, tokLits, emitted)
 }
 
 // emitTokLits invokes run.emitEntryPart() on the tokens that haven't been
 // emitted yet, along with heuristic preprocessing & cleanup, too.
 func (p *fileProcessor) emitTokLits(startOffset, startLine int64,
-	ts, module, level string, path []string, tokLits []tokLit, startAt int) int {
+	ol, ts, module, level string, path []string, tokLits []tokLit, startAt int) int {
 	var s []string
 
 	for i := startAt; i < len(tokLits); i++ {
@@ -257,38 +259,37 @@ func (p *fileProcessor) emitTokLits(startOffset, startLine int64,
 		tokLit.emitted = true
 
 		tokStr := tokLit.tok.String()
-		if p.run.emitTypes[tokStr] {
-			strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
-			p.run.emitEntryPart(ts, module, level, p.dirBase,
-				p.fname, p.fnameBase, p.fnameOut, startOffset, startLine,
-				"MIDS", path, "", "STRING", strs, true)
 
-			s = nil
+		strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
+		p.run.emitEntryPart(ts, module, level, p.dirBase,
+			p.fname, p.fnameBase, p.fnameOut,
+			ol, startOffset, startLine,
+			"MIDS", path, "", "STRING", strs, true)
 
-			name := cleanseName(nameFromTokLits(tokLits[0:i]))
-			if name != "" {
-				namePath := path
-				if len(namePath) <= 0 {
-					namePath = strings.Split(name, " ")
-					name = namePath[len(namePath)-1]
-					namePath = namePath[0 : len(namePath)-1]
-				}
+		s = nil
 
-				if name != "" {
-					p.dict.AddDictEntry(tokStr, name, tokLit.lit)
-					p.run.emitEntryPart(ts, module, level, p.dirBase,
-						p.fname, p.fnameBase, p.fnameOut, startOffset, startLine,
-						"VALS", namePath, name, tokStr, tokLit.lit, false)
-				}
+		name := cleanseName(nameFromTokLits(tokLits[0:i]))
+		if name != "" {
+			namePath := path
+			if len(namePath) <= 0 {
+				namePath = strings.Split(name, " ")
+				name = namePath[len(namePath)-1]
+				namePath = namePath[0 : len(namePath)-1]
 			}
-		} else {
-			s = append(s, tokenLitString(tokLit.tok, tokLit.lit))
+
+			if name != "" {
+				p.dict.AddDictEntry(tokStr, name, tokLit.lit)
+				p.run.emitEntryPart(ts, module, level, p.dirBase,
+					p.fname, p.fnameBase, p.fnameOut,
+					ol, startOffset, startLine,
+					"VALS", namePath, name, tokStr, tokLit.lit, false)
+			}
 		}
 	}
 
 	strs := strings.Trim(strings.Join(s, " "), "\t\n .:,")
 	p.run.emitEntryPart(ts, module, level, p.dirBase, p.fname, p.fnameBase, p.fnameOut,
-		startOffset, startLine, "ENDS", path, "", "STRING", strs, true)
+		ol, startOffset, startLine, "ENDS", path, "", "STRING", strs, true)
 
 	return len(tokLits)
 }

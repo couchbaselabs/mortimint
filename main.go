@@ -37,30 +37,67 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -%s=%s\n", f.Name, f.Value)
 	})
 
-	if run.run["std"] || run.run["stdout"] {
-		run.processDirs(os.Stdout)
+	emittedFiles := map[string]io.Closer{} // Keyed by path.
+
+	if run.run["stdout"] || run.run["std"] {
+		run.addEmitter(run.EmitParts, run.EmitTypes, os.Stdout)
 	}
 
-	if (run.run["std"] || run.run["stdin"]) && len(run.Dirs) <= 0 {
+	if run.run["tmp"] || run.run["web"] {
+		if run.Tmp == "" {
+			tmp, err := ioutil.TempDir("", "mortimint.tmp.")
+			if err != nil {
+				log.Fatal(err)
+			}
+			run.Tmp = tmp
+
+			defer os.RemoveAll(tmp)
+		}
+
+		path, closer := run.addEmitterFile(run.Tmp, "full.log", "FULL", "")
+		emittedFiles[path] = closer
+
+		path, closer = run.addEmitterFile(run.Tmp, "vals.log", "VALS", "INT")
+		emittedFiles[path] = closer
+
+		path, closer = run.addEmitterFile(run.Tmp, "emit.log", run.EmitParts, run.EmitTypes)
+		emittedFiles[path] = closer
+
+		if run.EmitDict == "" {
+			run.EmitDict = run.Tmp + string(os.PathSeparator) + "emit.dict"
+		}
+
+		if run.ProgressEvery == 0 {
+			run.ProgressEvery = 10000
+		}
+	}
+
+	if run.Workers <= 0 && run.run["web"] {
+		run.Workers = runtime.NumCPU()
+	}
+
+	if len(run.emitters) > 0 {
+		run.processDirs()
+	}
+
+	if len(emittedFiles) > 0 {
+		for _, f := range emittedFiles {
+			f.Close()
+		}
+
+		fmt.Fprintf(os.Stderr, "\ndone, emitted files:\n")
+		for path := range emittedFiles {
+			fmt.Fprintf(os.Stderr, "  %s\n", path)
+		}
+	}
+
+	if (run.run["stdin"] || run.run["std"]) && len(run.Dirs) <= 0 {
 		run.webGraph(os.Stdin)
 	}
 
-	if run.run["web"] || run.run["webServer"] {
-		if run.Workers <= 0 {
-			run.Workers = runtime.NumCPU()
-		}
-
+	if run.run["webServer"] || run.run["web"] {
 		go run.webServer()
-	}
 
-	if run.run["web"] || run.run["tmp"] {
-		cleanupTmpDir := run.processTmp()
-		if cleanupTmpDir != "" {
-			defer os.RemoveAll(cleanupTmpDir)
-		}
-	}
-
-	if run.run["web"] || run.run["webServer"] {
 		webAddr := run.WebAddr
 		if len(webAddr) > 0 && webAddr[0] == ':' {
 			webAddr = "127.0.0.1" + webAddr
@@ -94,23 +131,21 @@ type Run struct {
 
 	Workers int // Size of workers pool for concurrency.
 
-	emitParts map[string]bool // True when that part should be emitted.
-	emitTypes map[string]bool // True when that value type should be emitted.
-	run       map[string]bool
+	run map[string]bool // Result of parsing the Run param.
 
-	// fileProcessors is keyed by dirBase, then by file name.
-	fileProcessors map[string]map[string]*fileProcessor
-	fileSizes      map[string]map[string]int64
-
-	numFiles       int
+	totFiles       int // Total number of files to process.
 	maxFNameOutLen int
 	spaces         string // len(spaces) == maxFNameOutLen, used for padding.
 
+	// fileSizes is keyed by dirBase, then by file name.
+	fileSizes map[string]map[string]int64
+
+	// fileProcessors is keyed by dirBase, then by file name.
+	fileProcessors map[string]map[string]*fileProcessor
+
+	emitters []*Emitter
+
 	m sync.Mutex // Protects the fields that follow.
-
-	emitWriter io.Writer
-
-	dict Dict
 
 	emitDone     bool
 	emitProgress int64                       // Total number of emitXxxx() calls.
@@ -118,13 +153,15 @@ type Run struct {
 
 	minTS, maxTS string
 
-	graphData GraphData
+	dict Dict
 }
+
+// ------------------------------------------------------------
 
 func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 	run := &Run{
-		fileProcessors: map[string]map[string]*fileProcessor{},
 		fileSizes:      map[string]map[string]int64{},
+		fileProcessors: map[string]map[string]*fileProcessor{},
 		fileProgress:   map[string]map[string]int64{},
 		dict:           Dict{},
 	}
@@ -177,71 +214,43 @@ func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 
 	run.Dirs = flagSet.Args()
 
-	run.emitParts = csvToMap(run.EmitParts, map[string]bool{})
-	run.emitTypes = csvToMap(run.EmitTypes, map[string]bool{})
+	for _, dir := range run.Dirs {
+		fileInfos, err := ioutil.ReadDir(dir)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		dirBase := path.Base(dir)
+
+		for _, fileInfo := range fileInfos {
+			fmeta, exists := FileMetas[fileInfo.Name()]
+			if exists && !fmeta.Skip {
+				run.totFiles += 1
+
+				x := len(dirBase) + len(fileInfo.Name()) + 1
+				if run.maxFNameOutLen < x {
+					run.maxFNameOutLen = x
+				}
+
+				if run.fileSizes[dirBase] == nil {
+					run.fileSizes[dirBase] = map[string]int64{}
+				}
+				run.fileSizes[dirBase][fileInfo.Name()] = fileInfo.Size()
+			}
+		}
+	}
+
+	run.spaces = strings.Repeat(" ", run.maxFNameOutLen+1)
+
 	run.run = csvToMap(run.Run, map[string]bool{})
 
 	return run, flagSet
 }
 
-func csvToMap(csv string, m map[string]bool) map[string]bool {
-	for _, k := range strings.Split(csv, ",") {
-		m[k] = true
-	}
-	return m
-}
-
 // ------------------------------------------------------------
 
-func (run *Run) processTmp() (cleanupTmpDir string) {
-	if run.Tmp == "" {
-		tmp, err := ioutil.TempDir("", "mortimint.tmp.")
-		if err != nil {
-			log.Fatal(err)
-		}
-		run.Tmp = tmp
-
-		cleanupTmpDir = tmp
-	}
-
-	if run.ProgressEvery == 0 {
-		run.ProgressEvery = 10000
-	}
-
-	if run.EmitDict == "" {
-		run.EmitDict = run.Tmp + string(os.PathSeparator) + "emit.dict"
-	}
-
-	emitLogPath := run.Tmp + string(os.PathSeparator) + "emit.log"
-	emitLogFile, err := os.OpenFile(emitLogPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer emitLogFile.Close()
-
-	fmt.Fprintf(os.Stderr, "emitting: emit.dict: %s\n", run.EmitDict)
-	fmt.Fprintf(os.Stderr, "emitting: emit.log: %s\n", emitLogPath)
-
-	run.processDirs(emitLogFile)
-
-	fmt.Fprintf(os.Stderr, "\ndone, emitted files:\n  %s\n  %s\n",
-		run.EmitDict, emitLogPath)
-	fmt.Fprintf(os.Stderr, "\nexamples:\n  grep curr_items %s\n",
-		emitLogPath)
-
-	return cleanupTmpDir
-}
-
-// ------------------------------------------------------------
-
-func (run *Run) processDirs(emitWriter io.Writer) bool {
-	if !run.processInit() {
-		return false // No files to process.
-	}
-
-	run.emitWriter = emitWriter
-
-	workCh := make(chan *fileProcessor, run.numFiles)
+func (run *Run) processDirs() bool {
+	workCh := make(chan *fileProcessor, run.totFiles)
 	doneCh := make(chan *fileProcessor)
 
 	workers := run.Workers
@@ -270,7 +279,7 @@ func (run *Run) processDirs(emitWriter io.Writer) bool {
 
 	close(workCh)
 
-	for i := 0; i < run.numFiles; i++ {
+	for i := 0; i < run.totFiles; i++ {
 		fp := <-doneCh
 		run.m.Lock()
 		fp.dict.AddTo(run.dict)
@@ -288,60 +297,6 @@ func (run *Run) processDirs(emitWriter io.Writer) bool {
 	run.m.Unlock()
 
 	return true
-}
-
-func (run *Run) processInit() bool {
-	for _, dir := range run.Dirs {
-		fileInfos, err := ioutil.ReadDir(dir)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		dirBase := path.Base(dir)
-
-		for _, fileInfo := range fileInfos {
-			fmeta, exists := FileMetas[fileInfo.Name()]
-			if exists && !fmeta.Skip {
-				run.numFiles += 1
-
-				x := len(dirBase) + len(fileInfo.Name()) + 1
-				if run.maxFNameOutLen < x {
-					run.maxFNameOutLen = x
-				}
-
-				if run.fileSizes[dirBase] == nil {
-					run.fileSizes[dirBase] = map[string]int64{}
-				}
-				run.fileSizes[dirBase][fileInfo.Name()] = fileInfo.Size()
-			}
-		}
-	}
-
-	run.spaces = strings.Repeat(" ", run.maxFNameOutLen+1)
-
-	return run.numFiles > 0
-}
-
-func (run *Run) processEmitDict() {
-	if run.EmitDict != "" {
-		fmt.Fprintf(os.Stderr, "emitting JSON dictionary: %s\n", run.EmitDict)
-
-		f, err := os.OpenFile(run.EmitDict,
-			os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer f.Close()
-
-		err = json.NewEncoder(f).Encode(struct {
-			MinTS string
-			MaxTS string
-			Dict  Dict
-		}{run.minTS, run.maxTS, run.dict})
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 }
 
 func (run *Run) processDir(dir string, workCh chan *fileProcessor) error {
@@ -364,7 +319,9 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor) error {
 			continue
 		}
 
+		run.m.Lock()
 		run.fileProgress[dirBase] = map[string]int64{}
+		run.m.Unlock()
 
 		run.fileProcessors[dirBase][fname] = &fileProcessor{
 			run:       run,
@@ -385,53 +342,61 @@ func (run *Run) processDir(dir string, workCh chan *fileProcessor) error {
 
 // ------------------------------------------------------------
 
-func (run *Run) emitEntryFull(ts, module, level, dirBase,
-	fname, fnameBase, fnameOut string,
-	startOffset, startLine int64, lines []string) {
-	linesJoined := strings.Replace(strings.Join(lines, " "), "\n", " ", -1)
+func (run *Run) processEmitDict() {
+	if run.EmitDict != "" {
+		fmt.Fprintf(os.Stderr, "emitting JSON dictionary: %s\n", run.EmitDict)
 
-	module, ol := emitCommonPrep(module, fnameBase, startOffset, startLine)
+		f, err := os.OpenFile(run.EmitDict, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
 
-	partKind := ""
-	if len(run.emitParts) > 1 {
-		partKind = "FULL "
+		err = json.NewEncoder(f).Encode(struct {
+			MinTS string
+			MaxTS string
+			Dict  Dict
+		}{run.minTS, run.maxTS, run.dict})
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
+}
+
+// ------------------------------------------------------------
+
+func (run *Run) emitEntryFull(ts, module, level, dirBase,
+	fname, fnameBase, fnameOut, ol string,
+	startOffset, startLine int64, lines []string) {
+	var linesJoined string
 
 	run.m.Lock()
-	fmt.Fprintf(run.emitWriter, "  %s %s %s %s %s%s ",
-		ts, level, fnameOut, ol, partKind, module)
-	fmt.Fprintln(run.emitWriter, linesJoined)
+
+	for _, emitter := range run.emitters {
+		if emitter.emitParts["FULL"] {
+			if linesJoined == "" {
+				linesJoined = strings.Replace(strings.Join(lines, " "), "\n", " ", -1)
+			}
+
+			emitter.emitEntryFull(ts, module, level, fnameOut, ol, linesJoined)
+		}
+	}
+
 	run.emitCommonLocked(ts, dirBase, fname, startOffset)
+
 	run.m.Unlock()
 }
 
 func (run *Run) emitEntryPart(ts, module, level, dirBase,
-	fname, fnameBase, fnameOut string,
+	fname, fnameBase, fnameOut, ol string,
 	startOffset, startLine int64, partKind string,
 	namePath []string, name, valType, val string, valQuoted bool) {
-	if run.emitParts[partKind] && len(val) > 0 {
-		module, ol := emitCommonPrep(module, fnameBase, startOffset, startLine)
-
-		if len(run.emitParts) <= 1 {
-			partKind = ""
-		} else if partKind != "" {
-			partKind = partKind + " "
-		}
-
-		if name != "" {
-			name = name + " "
-		}
-
+	if len(val) > 0 {
 		run.m.Lock()
 
-		if valQuoted {
-			fmt.Fprintf(run.emitWriter, "  %s %s %s %s %s%s %+v %s= %s %q\n",
-				ts, level, fnameOut, ol, partKind, module,
-				namePath, name, valType, val)
-		} else {
-			fmt.Fprintf(run.emitWriter, "  %s %s %s %s %s%s %+v %s= %s %s\n",
-				ts, level, fnameOut, ol, partKind, module,
-				namePath, name, valType, val)
+		for _, emitter := range run.emitters {
+			emitter.emitEntryPart(ts, module, level,
+				fnameOut, ol, partKind, namePath, name, valType, val, valQuoted)
 		}
 
 		run.emitCommonLocked(ts, dirBase, fname, startOffset)

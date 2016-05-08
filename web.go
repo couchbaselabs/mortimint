@@ -31,6 +31,8 @@ func (run *Run) webRouter() *mux.Router {
 		return nil
 	}
 
+	var graphData GraphData
+
 	r := mux.NewRouter()
 
 	r.HandleFunc("/progress",
@@ -56,7 +58,7 @@ func (run *Run) webRouter() *mux.Router {
 	r.HandleFunc("/graphData",
 		func(w http.ResponseWriter, r *http.Request) {
 			run.m.Lock()
-			json.NewEncoder(w).Encode(run.graphData)
+			json.NewEncoder(w).Encode(graphData)
 			run.m.Unlock()
 		}).Methods("GET")
 
@@ -68,19 +70,19 @@ func (run *Run) webRouter() *mux.Router {
 				return
 			}
 
-			var graphData GraphData
-			err = json.Unmarshal(body, &graphData)
+			var graphDataIn GraphData
+			err = json.Unmarshal(body, &graphDataIn)
 			if err != nil {
 				http.Error(w, err.Error(), 400)
 				return
 			}
 
 			run.m.Lock()
-			run.graphData.MergeData(&graphData)
-			if run.graphData.Rev < graphData.Rev {
-				run.graphData.Rev = graphData.Rev
+			graphData.MergeData(&graphDataIn)
+			if graphData.Rev < graphDataIn.Rev {
+				graphData.Rev = graphDataIn.Rev
 			}
-			run.graphData.Rev++
+			graphData.Rev++
 			run.m.Unlock()
 		}).Methods("POST")
 
