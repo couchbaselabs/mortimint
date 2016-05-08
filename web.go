@@ -31,7 +31,7 @@ func (run *Run) webRouter() *mux.Router {
 		return nil
 	}
 
-	var graphData GraphData
+	graphData := GraphData{Data: map[string][]*GraphEntry{}}
 
 	r := mux.NewRouter()
 
@@ -107,9 +107,9 @@ func (run *Run) webGraph(r io.Reader) {
 		return
 	}
 
-	fmt.Printf("webGraph... %v\n", r)
+	fmt.Printf("webGraph...\n")
 
-	graphData := GraphData{}
+	graphData := GraphData{Data: map[string][]*GraphEntry{}}
 
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(nil, ScannerBufferCapacity)
@@ -167,6 +167,8 @@ func (run *Run) webGraph(r io.Reader) {
 		return
 	}
 
+	fmt.Printf("webGraph... posting...\n")
+
 	resp, err := http.Post("http://"+run.WebAddr+"/graphData",
 		"application/json", bytes.NewReader(buf))
 	if err != nil {
@@ -174,5 +176,5 @@ func (run *Run) webGraph(r io.Reader) {
 		return
 	}
 
-	fmt.Printf("resp: %#v\n", resp)
+	fmt.Println(resp.Status)
 }

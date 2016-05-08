@@ -92,7 +92,7 @@ func main() {
 		}
 
 		fmt.Fprintf(os.Stderr, "\ndone, emitted directory and files:\n")
-			fmt.Fprintf(os.Stderr, "  %s\n", run.Tmp)
+		fmt.Fprintf(os.Stderr, "  %s\n", run.Tmp)
 		for path := range emittedFiles {
 			fmt.Fprintf(os.Stderr, "  %s\n", path)
 		}
