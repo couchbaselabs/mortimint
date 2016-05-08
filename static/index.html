@@ -6,7 +6,7 @@
 <body>
 <div class="main">
   <h1>mortimint</h1>
-  <div class="graph">...</div>
+  <div class="graphContainer">...</div>
   <div class="progress">...</div>
   <div>
     <h2>links</h2>
@@ -111,28 +111,29 @@ function updateGraph() {
   background-color: #efe;
 }
 
-.graph {
-  display: none;
-}
-
-.dictDone .graph {
-  display: block;
-}
-
-.bar {
+.progress .bar {
   position: relative;
 }
-.bar * {
+.progress .bar * {
   display: inline-block;
   font-size: 8pt;
 }
-.bar .barName {
+.progress .bar .barName {
   min-width: 400px;
 }
-.bar .barVal {
+.progress .bar .barVal {
   position: relative;
   min-height: 6px;
   background-color: #8aa;
+}
+
+// ------------------------------------------------
+
+.graphContainer {
+  display: none;
+}
+.dictDone .graphContainer {
+  display: block;
 }
 </style>
 </body>
