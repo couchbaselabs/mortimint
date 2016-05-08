@@ -6,6 +6,7 @@
 <body>
 <div class="main">
   <h1>mortimint</h1>
+  <div class="graph">...</div>
   <div class="progress">...</div>
   <div>
     <h2>links</h2>
@@ -16,7 +17,6 @@
     <a href="/graphData">graphData</a>
   </div>
 </div>
-
 <script>
 var mainEl = document.getElementsByClassName("main")[0];
 var progressEl = document.getElementsByClassName("progress")[0];
@@ -41,7 +41,7 @@ function updateProgress() {
         updateProgressBars(data);
 
         if (data.EmitDone) {
-          mainEl.className += " done";
+          mainEl.className += " progressDone";
 
           updateDict();
         } else {
@@ -78,6 +78,8 @@ function updateDict() {
       response.json().then(function(data) {
         lastDict = data;
 
+        mainEl.className += " dictDone";
+
         updateGraph()
       });
     })
@@ -105,8 +107,16 @@ function updateGraph() {
 }
 </script>
 <style>
-.done .progress {
+.progressDone .progress {
   background-color: #efe;
+}
+
+.graph {
+  display: none;
+}
+
+.dictDone .graph {
+  display: block;
 }
 
 .bar {
