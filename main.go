@@ -76,6 +76,10 @@ func main() {
 		run.Workers = runtime.NumCPU()
 	}
 
+	if run.run["webServer"] || run.run["web"] {
+		go run.webServer()
+	}
+
 	if len(run.emitters) > 0 {
 		run.processDirs()
 	}
@@ -85,7 +89,8 @@ func main() {
 			f.Close()
 		}
 
-		fmt.Fprintf(os.Stderr, "\ndone, emitted files:\n")
+		fmt.Fprintf(os.Stderr, "\ndone, emitted directory and files:\n")
+			fmt.Fprintf(os.Stderr, "  %s\n", run.Tmp)
 		for path := range emittedFiles {
 			fmt.Fprintf(os.Stderr, "  %s\n", path)
 		}
@@ -96,8 +101,6 @@ func main() {
 	}
 
 	if run.run["webServer"] || run.run["web"] {
-		go run.webServer()
-
 		webAddr := run.WebAddr
 		if len(webAddr) > 0 && webAddr[0] == ':' {
 			webAddr = "127.0.0.1" + webAddr
