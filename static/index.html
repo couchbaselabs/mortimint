@@ -1,12 +1,15 @@
 <html>
 <head>
   <title>mortimint</title>
+  <script src="chart.min.js"></script>
   <script src="lodash.min.js"></script>
 </head>
 <body>
 <div class="main">
   <h1>mortimint</h1>
-  <div class="graphContainer">...</div>
+  <div class="chartContainer">
+    <canvas class="chart" width="600" height="100"></canvas>
+  </div>
   <div class="progress">...</div>
   <div>
     <h2>links</h2>
@@ -20,14 +23,12 @@
 <script>
 var mainEl = document.getElementsByClassName("main")[0];
 var progressEl = document.getElementsByClassName("progress")[0];
+var chartEl = document.getElementsByClassName("chart")[0];
 
-var barTmpl = _.template(
-  '<div class="bar">'+
-    '<div class="barName"><%= dir %>/<%= fname %></div>'+
-    '<div class="barVal" style="min-width: <%= width %>px;"></div>'+
-  '</div>');
+// ------------------------------------------------
 
 var lastProgress = {};
+
 function updateProgress() {
   fetch("./progress")
     .then(function(response) {
@@ -67,7 +68,16 @@ function updateProgressBars(data) {
   progressEl.innerHTML = pcts.join("");
 }
 
+var barTmpl = _.template(
+  '<div class="bar">'+
+    '<div class="barName"><%= dir %>/<%= fname %></div>'+
+    '<div class="barVal" style="min-width: <%= width %>px;"></div>'+
+  '</div>');
+
+// ------------------------------------------------
+
 var lastDict = {};
+
 function updateDict() {
   fetch("./outDir/emit.dict")
     .then(function(response) {
@@ -80,16 +90,19 @@ function updateDict() {
 
         mainEl.className += " dictDone";
 
-        updateGraph()
+        updateGraphData()
       });
     })
     .catch(function(err) { console.log("fetch error", err); });
 }
 
+// ------------------------------------------------
+
 var graphData = {};
-var graphNum = 0;
-function updateGraph() {
-  graphNum++;
+var graphDataNum = 0;
+
+function updateGraphData() {
+  graphDataNum++;
 
   fetch("./graphData")
     .then(function(response) {
@@ -100,10 +113,43 @@ function updateGraph() {
       response.json().then(function(data) {
         graphData = data;
 
-        setTimeout(updateGraph, 1500);
+        updateChart(data);
+
+        setTimeout(updateGraphData, 2000);
       });
     })
     .catch(function(err) { console.log("fetch error", err); });
+}
+
+// ------------------------------------------------
+
+var chartedGraphData = {};
+
+function updateChart(graphData) {
+  if (chartedGraphData.Rev == graphData.Rev) {
+    return
+  }
+  chartedGraphData = graphData;
+
+  var myChart = new Chart(chartEl, {
+    type: 'bar',
+    data: {
+      labels: ["Red", "Blue", "Yellow", "Green", "Purple", "Orange"],
+      datasets: [{
+          label: '# of Votes',
+          data: [12, 19, 3, 5, 2, 3]
+      }]
+    },
+    options: {
+        scales: {
+            yAxes: [{
+                ticks: {
+                    beginAtZero:true
+                }
+            }]
+        }
+    }
+    });
 }
 </script>
 <style>
@@ -129,10 +175,10 @@ function updateGraph() {
 
 // ------------------------------------------------
 
-.graphContainer {
+.main .chartContainer {
   display: none;
 }
-.dictDone .graphContainer {
+.main.dictDone .chartContainer {
   display: block;
 }
 </style>
