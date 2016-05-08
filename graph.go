@@ -2,7 +2,11 @@ package main
 
 type GraphData struct {
 	Rev  int64
-	Data map[string][]*GraphEntry // Key'ed by name
+	Runs []*GraphRun
+}
+
+type GraphRun struct {
+	Data map[string][]*GraphEntry // Key'ed by name.
 }
 
 type GraphEntry struct {
@@ -16,8 +20,6 @@ type GraphEntry struct {
 	Val        string
 }
 
-func (g *GraphData) MergeData(incoming *GraphData) {
-	for name, data := range incoming.Data {
-		g.Data[name] = append(g.Data[name], data...)
-	}
+func (g *GraphData) Add(incoming *GraphData) {
+	g.Runs = append(g.Runs, incoming.Runs...)
 }

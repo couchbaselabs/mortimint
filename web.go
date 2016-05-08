@@ -31,7 +31,7 @@ func (run *Run) webRouter() *mux.Router {
 		return nil
 	}
 
-	graphData := GraphData{Data: map[string][]*GraphEntry{}}
+	graphData := GraphData{}
 
 	r := mux.NewRouter()
 
@@ -78,7 +78,7 @@ func (run *Run) webRouter() *mux.Router {
 			}
 
 			run.m.Lock()
-			graphData.MergeData(&graphDataIn)
+			graphData.Add(&graphDataIn)
 			if graphData.Rev < graphDataIn.Rev {
 				graphData.Rev = graphDataIn.Rev
 			}
@@ -109,7 +109,14 @@ func (run *Run) webGraph(r io.Reader) {
 
 	fmt.Printf("webGraph...\n")
 
-	graphData := GraphData{Data: map[string][]*GraphEntry{}}
+	graphData := GraphData{
+		Runs: []*GraphRun{
+			&GraphRun{Data: map[string][]*GraphEntry{}},
+		},
+	}
+	graphRun := graphData.Runs[0]
+
+	lines := 0
 
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(nil, ScannerBufferCapacity)
@@ -149,7 +156,7 @@ func (run *Run) webGraph(r io.Reader) {
 		name := lineParts[len(lineParts)-4]
 		val := lineParts[len(lineParts)-1]
 
-		graphData.Data[name] = append(graphData.Data[name], &GraphEntry{
+		graphRun.Data[name] = append(graphRun.Data[name], &GraphEntry{
 			Ts:         ts,
 			Level:      level,
 			DirFName:   dirFName,
@@ -159,7 +166,11 @@ func (run *Run) webGraph(r io.Reader) {
 			Path:       path,
 			Val:        val,
 		})
+
+		lines++
 	}
+
+	fmt.Printf("webGraph... lines: %d\n", lines)
 
 	buf, err := json.Marshal(graphData)
 	if err != nil {
