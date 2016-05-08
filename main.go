@@ -60,8 +60,10 @@ func main() {
 		path, closer = run.addEmitterFile(run.Tmp, "vals.log", "VALS", "INT")
 		emittedFiles[path] = closer
 
-		path, closer = run.addEmitterFile(run.Tmp, "emit.log", run.EmitParts, run.EmitTypes)
-		emittedFiles[path] = closer
+		if run.EmitParts != "FULL" || run.EmitTypes != "INT" {
+			path, closer = run.addEmitterFile(run.Tmp, "emit.log", run.EmitParts, run.EmitTypes)
+			emittedFiles[path] = closer
+		}
 
 		if run.EmitDict == "" {
 			run.EmitDict = run.Tmp + string(os.PathSeparator) + "emit.dict"
