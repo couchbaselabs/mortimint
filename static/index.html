@@ -11,7 +11,7 @@
     <h2>links</h2>
     <a href="/progress">progress</a>
     <br/>
-    <a href="/emit/">emit</a>
+    <a href="/outDir/">outDir</a>
     <br/>
     <a href="/graphData">graphData</a>
   </div>
@@ -69,10 +69,10 @@ function updateProgressBars(data) {
 
 var lastDict = {};
 function updateDict() {
-  fetch("./emit/emit.dict")
+  fetch("./outDir/emit.dict")
     .then(function(response) {
       if (response.status != 200) {
-        return console.log("fetch /emit/emit.dict not 200", response);
+        return console.log("fetch /outDir/emit.dict not 200", response);
       }
 
       response.json().then(function(data) {

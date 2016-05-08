@@ -44,38 +44,40 @@ func main() {
 	}
 
 	if run.run["tmp"] || run.run["web"] {
-		if run.Tmp == "" {
+		if run.OutDir == "" {
 			tmp, err := ioutil.TempDir("", "mortimint.tmp.")
 			if err != nil {
 				log.Fatal(err)
 			}
-			run.Tmp = tmp
+			run.OutDir = tmp
 
 			defer os.RemoveAll(tmp)
 		}
+	}
 
-		path, closer := run.addEmitterFile(run.Tmp, "full.log", "FULL", "")
+	if run.run["emit"] || run.run["web"] {
+		path, closer := run.addEmitterFile(run.OutDir, "full.log", "FULL", "")
 		emittedFiles[path] = closer
 
-		path, closer = run.addEmitterFile(run.Tmp, "vals.log", "VALS", "INT")
+		path, closer = run.addEmitterFile(run.OutDir, "vals.log", "VALS", "INT")
 		emittedFiles[path] = closer
 
 		if run.EmitParts != "FULL" || run.EmitTypes != "INT" {
-			path, closer = run.addEmitterFile(run.Tmp, "emit.log", run.EmitParts, run.EmitTypes)
+			path, closer = run.addEmitterFile(run.OutDir, "emit.log", run.EmitParts, run.EmitTypes)
 			emittedFiles[path] = closer
 		}
 
 		if run.EmitDict == "" {
-			run.EmitDict = run.Tmp + string(os.PathSeparator) + "emit.dict"
+			run.EmitDict = run.OutDir + string(os.PathSeparator) + "emit.dict"
 		}
 
 		if run.ProgressEvery == 0 {
 			run.ProgressEvery = 10000
 		}
-	}
 
-	if run.Workers <= 0 && run.run["web"] {
-		run.Workers = runtime.NumCPU()
+		if run.Workers <= 0 {
+			run.Workers = runtime.NumCPU()
+		}
 	}
 
 	if run.run["webServer"] || run.run["web"] {
@@ -92,7 +94,7 @@ func main() {
 		}
 
 		fmt.Fprintf(os.Stderr, "\ndone, emitted directory and files:\n")
-		fmt.Fprintf(os.Stderr, "  %s\n", run.Tmp)
+		fmt.Fprintf(os.Stderr, "  %s\n", run.OutDir)
 		for path := range emittedFiles {
 			fmt.Fprintf(os.Stderr, "  %s\n", path)
 		}
@@ -124,12 +126,13 @@ type Run struct {
 	EmitParts string // Comma-separated list of parts of data to emit (VALS, MIDS, ENDS).
 	EmitTypes string // Comma-separated list of value types to emit (INT, STRING).
 
-	Dirs []string // Directories to process.
+	Dirs []string // Input directories to process.
+
+	OutDir string // Output directory to use.
 
 	ProgressEvery int // When > 0 emit progress every this many entries.
 
 	Run string // Comma-separated list of the kind of run, like "stdout,web".
-	Tmp string // Tmp dir to use, otherwise use a system provided tmp dir.
 
 	WebAddr   string // Host:Port to use for web server.
 	WebStatic string // Path to web static resources dir.
@@ -195,15 +198,16 @@ func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 		"optional, when > 0, emit a progress to stderr after modulo this many emits.")
 	flagSet.StringVar(&run.Run, "run", "std",
 		"optional, comma-separated list of the kind of run; supported values:\n"+
+			"          emit      - emits full/vals.log and emit.dict to outDir;\n"+
 			"          std       - convenience alias for \"stdin,stdout\";\n"+
 			"          stdin     - process stdin to send to web server for graphing;\n"+
 			"          stdout    - emit processed logs to stdout;\n"+
-			"          tmp       - emit processed logs and dict to tmp dir;\n"+
-			"          web       - convenience alias for \"tmp,webServer\";\n"+
-			"          webServer - run a web server with previously processed logs and dict.\n"+
+			"          tmp       - create a temporary dir for outDir, if needed;\n"+
+			"          web       - convenience alias for \"tmp,emit,webServer\";\n"+
+			"          webServer - run a web server with previously emit'ed logs and dict.\n"+
 			"       ")
-	flagSet.StringVar(&run.Tmp, "tmp", "",
-		"optional, tmp dir to use; a tmp dir will be created when run kind has \"tmp\".")
+	flagSet.StringVar(&run.OutDir, "outDir", "",
+		"optional, output directory to use.")
 	flagSet.StringVar(&run.WebAddr, "webAddr", ":8911",
 		"optional, addr:port to use for web server.\n"+
 			"       ")

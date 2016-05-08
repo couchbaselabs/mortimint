@@ -86,9 +86,9 @@ func (run *Run) webRouter() *mux.Router {
 			run.m.Unlock()
 		}).Methods("POST")
 
-	r.PathPrefix("/emit/").
-		Handler(http.StripPrefix("/emit/",
-			http.FileServer(http.Dir(run.Tmp)))).Methods("GET")
+	r.PathPrefix("/outDir/").
+		Handler(http.StripPrefix("/outDir/",
+			http.FileServer(http.Dir(run.OutDir)))).Methods("GET")
 
 	r.PathPrefix("/").
 		Handler(http.StripPrefix("/",
