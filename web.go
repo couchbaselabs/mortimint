@@ -113,25 +113,30 @@ func (run *Run) webRouter() *mux.Router {
 				return
 			}
 
-			if run.OutDir == "" {
-				http.Error(w, "error: no outDir", 400)
+			dirFound := ""
+			for _, dir := range run.Dirs {
+				if dirName == path.Base(dir) {
+					dirFound = dir
+					break
+				}
+			}
+			if dirFound == "" {
+				http.Error(w, "error: no match with run.Dirs", 400)
 				return
 			}
+
+			f, err := os.Open(path.Join(dirFound, fileName))
+			if err != nil {
+				http.Error(w, err.Error(), 400)
+				return
+			}
+			defer f.Close()
 
 			offsetByte, err := strconv.ParseInt(vars["offsetByte"], 10, 64)
 			if err != nil || offsetByte < 0 {
 				http.Error(w, "error: offsetByte", 400)
 				return
 			}
-
-			fpath := path.Join(run.OutDir, dirName, fileName)
-
-			f, err := os.Open(fpath)
-			if err != nil {
-				http.Error(w, err.Error(), 400)
-				return
-			}
-			defer f.Close()
 
 			fileParts := []*FilePart{
 				&FilePart{offsetByte - 20000, 20000, ""},
