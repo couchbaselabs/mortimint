@@ -1,14 +1,14 @@
 <html>
 <head>
   <title>mortimint</title>
-  <script src="chart.min.js"></script>
   <script src="lodash.min.js"></script>
+  <script src="dygraph-combined.js"></script>
 </head>
 <body>
 <div class="main">
   <h1>mortimint</h1>
   <div class="chartContainer">
-    <canvas class="chart" width="600" height="100"></canvas>
+    <div class="chart"/>
   </div>
   <div class="progress">...</div>
   <div>
@@ -131,25 +131,12 @@ function updateChart(graphData) {
   }
   chartedGraphData = graphData;
 
-  var myChart = new Chart(chartEl, {
-    type: 'bar',
-    data: {
-      labels: ["Red", "Blue", "Yellow", "Green", "Purple", "Orange"],
-      datasets: [{
-          label: '# of Votes',
-          data: [12, 19, 3, 5, 2, 3]
-      }]
-    },
-    options: {
-        scales: {
-            yAxes: [{
-                ticks: {
-                    beginAtZero:true
-                }
-            }]
-        }
-    }
-    });
+  var g = new Dygraph(chartEl,
+    "Date,Temperature\n" +
+    "2008-05-07,75\n" +
+    "2008-05-08,70\n" +
+    "2008-05-09,80\n"
+  );
 }
 </script>
 <style>
