@@ -133,12 +133,12 @@ function updateChart(graphData) {
   }
   chartedGraphData = graphData;
 
-  var labels = ["datetime"].concat(_.keys(graphData.Data));
+  var labels = ["Ts"].concat(_.keys(graphData.Data));
   var data = [];
 
   _.forEach(graphData.Data, function(graphEntries) {
     _.forEach(graphEntries, function(graphEntry) {
-      data.push([graphEntry.Ts.replace('T', ' '), parseInt(graphEntry.Val)])
+      data.push([new Date(graphEntry.Ts), parseInt(graphEntry.Val)])
     });
   });
 
