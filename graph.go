@@ -1,13 +1,19 @@
 package main
 
+import (
+	"sort"
+)
+
 type GraphData struct {
 	Rev  int64
-	Runs []*GraphRun
+	Data map[string]GraphEntries // Key'ed by name.
 }
 
-type GraphRun struct {
-	Data map[string][]*GraphEntry // Key'ed by name.
-}
+type GraphEntries []*GraphEntry
+
+func (a GraphEntries) Len() int           { return len(a) }
+func (a GraphEntries) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a GraphEntries) Less(i, j int) bool { return a[i].Ts < a[j].Ts }
 
 type GraphEntry struct {
 	Ts         string
@@ -21,5 +27,9 @@ type GraphEntry struct {
 }
 
 func (g *GraphData) Add(incoming *GraphData) {
-	g.Runs = append(g.Runs, incoming.Runs...)
+	for name, entries := range incoming.Data {
+		g.Data[name] = append(g.Data[name], entries...)
+
+		sort.Sort(g.Data[name])
+	}
 }

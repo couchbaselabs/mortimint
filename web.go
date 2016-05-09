@@ -31,7 +31,7 @@ func (run *Run) webRouter() *mux.Router {
 		return nil
 	}
 
-	graphData := GraphData{}
+	graphData := GraphData{Data: map[string]GraphEntries{}}
 
 	r := mux.NewRouter()
 
@@ -109,12 +109,7 @@ func (run *Run) webGraph(r io.Reader) {
 
 	fmt.Printf("webGraph...\n")
 
-	graphData := GraphData{
-		Runs: []*GraphRun{
-			&GraphRun{Data: map[string][]*GraphEntry{}},
-		},
-	}
-	graphRun := graphData.Runs[0]
+	graphData := GraphData{Data: map[string]GraphEntries{}}
 
 	lines := 0
 
@@ -156,7 +151,7 @@ func (run *Run) webGraph(r io.Reader) {
 		name := lineParts[len(lineParts)-4]
 		val := lineParts[len(lineParts)-1]
 
-		graphRun.Data[name] = append(graphRun.Data[name], &GraphEntry{
+		graphData.Data[name] = append(graphData.Data[name], &GraphEntry{
 			Ts:         ts,
 			Level:      level,
 			DirFName:   dirFName,

@@ -123,6 +123,8 @@ function updateGraphData() {
 
 // ------------------------------------------------
 
+var g = new Dygraph(chartEl);
+
 var chartedGraphData = {};
 
 function updateChart(graphData) {
@@ -131,12 +133,19 @@ function updateChart(graphData) {
   }
   chartedGraphData = graphData;
 
-  var g = new Dygraph(chartEl,
-    "Date,Temperature\n" +
-    "2008-05-07,75\n" +
-    "2008-05-08,70\n" +
-    "2008-05-09,80\n"
-  );
+  var labels = ["datetime"].concat(_.keys(graphData.Data));
+  var data = [];
+
+  _.forEach(graphData.Data, function(graphEntries) {
+    _.forEach(graphEntries, function(graphEntry) {
+      data.push([graphEntry.Ts.replace('T', ' '), parseInt(graphEntry.Val)])
+    });
+  });
+
+  console.log(labels);
+  console.log(data);
+
+  g.updateOptions({file: data, labels: labels});
 }
 </script>
 <style>
