@@ -172,9 +172,21 @@ func (run *Run) webRouter() *mux.Router {
 			run.m.Unlock()
 		}).Methods("GET")
 
+	var s http.FileSystem
+	if run.WebStatic != "" {
+		_, err := os.Stat(run.WebStatic)
+		if err != nil {
+			log.Fatal(err)
+			return r
+		}
+
+		s = http.Dir(run.WebStatic)
+	} else {
+		s = AssetFS()
+	}
+
 	r.PathPrefix("/").
-		Handler(http.StripPrefix("/",
-			http.FileServer(http.Dir(run.WebStatic)))).Methods("GET")
+		Handler(http.StripPrefix("/", http.FileServer(s))).Methods("GET")
 
 	return r
 }

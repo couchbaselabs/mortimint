@@ -110,6 +110,10 @@ func main() {
 			webAddr = "127.0.0.1" + webAddr
 		}
 
+		if run.WebStatic != "" {
+			fmt.Fprintf(os.Stderr, "\nmortimint web static resources: %s\n", run.WebStatic)
+		}
+
 		fmt.Fprintf(os.Stderr, "\nmortimint web running on:\n  http://%s\n", webAddr)
 		fmt.Fprintf(os.Stderr, "\nmortimint web (ctrl-d to exit) >> ")
 
@@ -211,10 +215,9 @@ func parseArgsToRun(args []string) (*Run, *flag.FlagSet) {
 	flagSet.StringVar(&run.WebAddr, "webAddr", ":8911",
 		"optional, addr:port to use for web server.\n"+
 			"       ")
-	flagSet.StringVar(&run.WebStatic, "webStatic", "./static",
+	flagSet.StringVar(&run.WebStatic, "webStatic", "",
 		"optional, directory of static web server resources;\n"+
-			"        this is useful when debugging mortimint."+
-			"       ")
+			"        this is useful when debugging mortimint.")
 	flagSet.IntVar(&run.Workers, "workers", 0,
 		"optional, number of concurrent processing workers to use.\n"+
 			"       ")
