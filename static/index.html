@@ -10,7 +10,7 @@
   <div class="chartContainer">
     <div class="chart"/>
   </div>
-  <div class="log"></div>
+  <div class="logShow"></div>
   <div class="progress">...</div>
   <div>
     <h2>links</h2>
@@ -25,7 +25,7 @@
 var mainEl = document.getElementsByClassName("main")[0];
 var progressEl = document.getElementsByClassName("progress")[0];
 var chartEl = document.getElementsByClassName("chart")[0];
-var logEl = document.getElementsByClassName("log")[0];
+var logShowEl = document.getElementsByClassName("logShow")[0];
 
 // ------------------------------------------------
 
@@ -148,15 +148,53 @@ function updateChart(graphData) {
     });
   });
 
-  console.log(labels);
-  console.log(data);
-
   if (!g) {
-    g = new Dygraph(chartEl, data, {labels: labels});
+    g = new Dygraph(chartEl, data, {
+      labels: labels,
+      clickCallback: onChartClick,
+      highlightCallback: onChartHighlight,
+    });
   } else {
     g.updateOptions({file: data, labels: labels});
   }
 }
+
+function onChartClick(event, x, points) {
+  logShowTrackingToggle();
+}
+
+function onChartHighlight(event, x, points, rowIdx, seriesName) {
+  var d = new Date(x);
+
+  if (!points || points.length <= 0 || !chartedGraphData) {
+    return;
+  }
+
+  var name = points[0].name;
+  var graphEntry = chartedGraphData.Data[name][rowIdx];
+  if (graphEntry) {
+    logShow(name, graphEntry);
+  }
+}
+
+// ------------------------------------------------
+
+var logShowTracking = true;
+
+function logShowTrackingToggle() {
+  logShowTracking = !logShowTracking;
+}
+
+var logShowInflight = false;
+
+function logShow(name, graphEntry) {
+  if (!logShowTracking || logShowInflight) {
+    return;
+  }
+
+  console.log("logShow", name, graphEntry);
+}
+
 </script>
 <style>
 .progressDone .progress {
