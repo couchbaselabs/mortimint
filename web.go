@@ -10,12 +10,21 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
 )
+
+type FilePart struct {
+	Offset  int64
+	Length  int64
+	Content string
+}
+
+// ------------------------------------------------------
 
 func (run *Run) webServer() {
 	err := http.ListenAndServe(run.WebAddr, run.webRouter())
@@ -89,6 +98,74 @@ func (run *Run) webRouter() *mux.Router {
 	r.PathPrefix("/outDir/").
 		Handler(http.StripPrefix("/outDir/",
 			http.FileServer(http.Dir(run.OutDir)))).Methods("GET")
+
+	r.HandleFunc("/logShow/{dirName}/{fileName}/{offsetByte}",
+		func(w http.ResponseWriter, r *http.Request) {
+			vars := mux.Vars(r)
+			dirName := vars["dirName"]
+			fileName := vars["fileName"]
+
+			if strings.Index(dirName, "..") >= 0 ||
+				strings.Index(fileName, "..") >= 0 ||
+				strings.Index(dirName, string(os.PathSeparator)) >= 0 ||
+				strings.Index(fileName, string(os.PathSeparator)) >= 0 {
+				http.Error(w, "error: dir/file name", 400)
+				return
+			}
+
+			if run.OutDir == "" {
+				http.Error(w, "error: no outDir", 400)
+				return
+			}
+
+			offsetByte, err := strconv.ParseInt(vars["offsetByte"], 10, 64)
+			if err != nil || offsetByte < 0 {
+				http.Error(w, "error: offsetByte", 400)
+				return
+			}
+
+			fpath := path.Join(run.OutDir, dirName, fileName)
+
+			f, err := os.Open(fpath)
+			if err != nil {
+				http.Error(w, err.Error(), 400)
+				return
+			}
+			defer f.Close()
+
+			fileParts := []*FilePart{
+				&FilePart{offsetByte - 20000, 20000, ""},
+				&FilePart{offsetByte, 50000, ""},
+			}
+
+			for _, filePart := range fileParts {
+				if filePart.Offset < 0 {
+					filePart.Length += filePart.Offset
+					filePart.Offset = 0
+				}
+
+				_, err := f.Seek(filePart.Offset, 0)
+				if err != nil {
+					http.Error(w, err.Error(), 400)
+					return
+				}
+
+				buf := make([]byte, filePart.Length)
+
+				length, err := f.Read(buf)
+				if err != nil {
+					http.Error(w, err.Error(), 400)
+					return
+				}
+
+				filePart.Length = int64(length)
+				filePart.Content = string(buf)
+			}
+
+			run.m.Lock()
+			json.NewEncoder(w).Encode(fileParts)
+			run.m.Unlock()
+		}).Methods("GET")
 
 	r.PathPrefix("/").
 		Handler(http.StripPrefix("/",
