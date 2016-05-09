@@ -237,7 +237,7 @@ func (run *Run) webGraph(r io.Reader) {
 			Ts:         ts,
 			Level:      level,
 			DirFName:   dirFName,
-			OffSetByte: offsetByte,
+			OffsetByte: offsetByte,
 			OffsetLine: offsetLine,
 			Module:     module,
 			Path:       path,

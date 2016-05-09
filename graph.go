@@ -19,7 +19,7 @@ type GraphEntry struct {
 	Ts         string
 	Level      string
 	DirFName   string
-	OffSetByte int64
+	OffsetByte int64
 	OffsetLine int64
 	Module     string
 	Path       string

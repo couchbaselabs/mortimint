@@ -7,12 +7,19 @@
 <body>
 <div class="main">
   <h1>mortimint</h1>
+
   <div class="chartContainer">
     <div class="chart"/>
   </div>
-  <div class="logShow"></div>
+
+  <div class="logShow">
+    <label class="logShowLabel"></label>
+    <div class="logShowContent"></div>
+  </div>
+
   <div class="progress">...</div>
-  <div>
+
+  <div class="links">
     <h2>links</h2>
     <a href="/progress">progress</a>
     <br/>
@@ -25,7 +32,8 @@
 var mainEl = document.getElementsByClassName("main")[0];
 var progressEl = document.getElementsByClassName("progress")[0];
 var chartEl = document.getElementsByClassName("chart")[0];
-var logShowEl = document.getElementsByClassName("logShow")[0];
+var logShowLabelEl = document.getElementsByClassName("logShowLabel")[0];
+var logShowContentEl = document.getElementsByClassName("logShowContent")[0];
 
 // ------------------------------------------------
 
@@ -125,7 +133,7 @@ function updateGraphData() {
 
 // ------------------------------------------------
 
-var g = null;
+var g = null; // Later will be a Dygraph instance.
 
 var chartedGraphData = {};
 
@@ -185,6 +193,8 @@ function logShowTrackingToggle() {
   logShowTracking = !logShowTracking;
 }
 
+// ------------------------------------------------
+
 var logShowInflight = false;
 
 function logShow(name, graphEntry) {
@@ -192,7 +202,25 @@ function logShow(name, graphEntry) {
     return;
   }
 
-  logShowEl.innerHTML = name + " " + JSON.stringify(graphEntry);
+  logShowLabelEl.innerText = name + " " + JSON.stringify(graphEntry);
+
+  logShowInflight = true;
+
+  logShowUrl = "./logShow/" + graphEntry.DirFName + "/" + graphEntry.OffsetByte;
+
+  fetch(logShowUrl)
+    .then(function(response) {
+      logShowInflight = false;
+
+      if (response.status != 200) {
+        return console.log("fetch " + logShowUrl + " not 200", response);
+      }
+
+      response.json().then(function(data) {
+        // TODO.
+      });
+    })
+    .catch(function(err) { console.log("fetch error", err); });
 }
 
 </script>
