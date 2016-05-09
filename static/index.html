@@ -14,7 +14,8 @@
 
   <div class="logShow">
     <label class="logShowLabel"></label>
-    <div class="logShowContent"></div>
+    <pre class="logShowContentBefore"></pre>
+    <pre class="logShowContentAt"></pre>
   </div>
 
   <div class="progress">...</div>
@@ -33,7 +34,8 @@ var mainEl = document.getElementsByClassName("main")[0];
 var progressEl = document.getElementsByClassName("progress")[0];
 var chartEl = document.getElementsByClassName("chart")[0];
 var logShowLabelEl = document.getElementsByClassName("logShowLabel")[0];
-var logShowContentEl = document.getElementsByClassName("logShowContent")[0];
+var logShowContentBeforeEl = document.getElementsByClassName("logShowContentBefore")[0];
+var logShowContentAtEl = document.getElementsByClassName("logShowContentAt")[0];
 
 // ------------------------------------------------
 
@@ -159,6 +161,8 @@ function updateChart(graphData) {
   if (!g) {
     g = new Dygraph(chartEl, data, {
       labels: labels,
+      width: 1000,
+      height: 200,
       clickCallback: onChartClick,
       highlightCallback: onChartHighlight,
     });
@@ -217,7 +221,8 @@ function logShow(name, graphEntry) {
       }
 
       response.json().then(function(data) {
-        // TODO.
+        logShowContentBeforeEl.innerText = data[0].Content;
+        logShowContentAtEl.innerText = data[1].Content;
       });
     })
     .catch(function(err) { console.log("fetch error", err); });
@@ -225,6 +230,21 @@ function logShow(name, graphEntry) {
 
 </script>
 <style>
+.chartContainer .chart {
+  width: 100%;
+}
+
+.logShow {
+  margin: 10px 10px 10px 20px;
+}
+.logShowLabel {
+  font-family: monospace;
+  font-size: 6pt;
+}
+.logShowContentAt {
+  border-top: 1px solid #333;
+}
+
 .progressDone .progress {
   background-color: #efe;
 }
@@ -243,15 +263,6 @@ function logShow(name, graphEntry) {
   position: relative;
   min-height: 6px;
   background-color: #8aa;
-}
-
-// ------------------------------------------------
-
-.main .chartContainer {
-  display: none;
-}
-.main.dictDone .chartContainer {
-  display: block;
 }
 </style>
 </body>
