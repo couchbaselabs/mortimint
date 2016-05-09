@@ -10,6 +10,7 @@
   <div class="chartContainer">
     <div class="chart"/>
   </div>
+  <div class="log"></div>
   <div class="progress">...</div>
   <div>
     <h2>links</h2>
@@ -24,6 +25,7 @@
 var mainEl = document.getElementsByClassName("main")[0];
 var progressEl = document.getElementsByClassName("progress")[0];
 var chartEl = document.getElementsByClassName("chart")[0];
+var logEl = document.getElementsByClassName("log")[0];
 
 // ------------------------------------------------
 
@@ -123,7 +125,7 @@ function updateGraphData() {
 
 // ------------------------------------------------
 
-var g = new Dygraph(chartEl);
+var g = null;
 
 var chartedGraphData = {};
 
@@ -134,6 +136,10 @@ function updateChart(graphData) {
   chartedGraphData = graphData;
 
   var labels = ["Ts"].concat(_.keys(graphData.Data));
+  if (labels.length <= 1) {
+    return;
+  }
+
   var data = [];
 
   _.forEach(graphData.Data, function(graphEntries) {
@@ -145,7 +151,11 @@ function updateChart(graphData) {
   console.log(labels);
   console.log(data);
 
-  g.updateOptions({file: data, labels: labels});
+  if (!g) {
+    g = new Dygraph(chartEl, data, {labels: labels});
+  } else {
+    g.updateOptions({file: data, labels: labels});
+  }
 }
 </script>
 <style>
