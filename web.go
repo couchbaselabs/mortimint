@@ -34,12 +34,6 @@ func (run *Run) webServer() {
 }
 
 func (run *Run) webRouter() *mux.Router {
-	fi, err := os.Stat(run.WebStatic)
-	if err != nil || !fi.Mode().IsDir() {
-		log.Fatal(err)
-		return nil
-	}
-
 	graphData := GraphData{Data: map[string]GraphEntries{}}
 
 	r := mux.NewRouter()
@@ -174,10 +168,10 @@ func (run *Run) webRouter() *mux.Router {
 
 	var s http.FileSystem
 	if run.WebStatic != "" {
-		_, err := os.Stat(run.WebStatic)
-		if err != nil {
+		fi, err := os.Stat(run.WebStatic)
+		if err != nil || !fi.Mode().IsDir() {
 			log.Fatal(err)
-			return r
+			return nil
 		}
 
 		s = http.Dir(run.WebStatic)
