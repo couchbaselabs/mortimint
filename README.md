@@ -1,10 +1,11 @@
-mortimint - fresh breath for couchbase postmortems
+mortimint - fresh breath for couchbase logs and postmortems
 
-mortimint flattens cbcollect-info logs into a grep-friendlier format.
+mortimint flattens cbcollect-info logs into a friendlier format,
+that's more easily sortable and grep'able.
 
-Many cbcollect-info log files include tree-like log entries that span
-multiple lines, such as erlang terms and JSON.  mortimint will flatten
-those tree-like entries into multiple output lines, where every
+The issue: many cbcollect-info log files include tree-like log entries
+that span multiple lines, such as erlang terms and JSON.  mortimint will
+flatten those tree-like entries into multiple output lines, where every
 emitted line will include a date/time-stamp.
 
 # Building & installing
