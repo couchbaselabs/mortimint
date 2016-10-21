@@ -7,7 +7,7 @@ multiple lines, such as erlang terms and JSON.  mortimint will flatten
 those tree-like entries into multiple output lines, where every
 emitted line will include a date/time-stamp.
 
-= Building & installing
+# Building & installing
 
 Prerequisites: go
 
@@ -18,7 +18,7 @@ To build...
 After that, mortimint should be built and installed into your go bin
 directory.
 
-= Usage
+# Usage
 
 Usage example...
 
